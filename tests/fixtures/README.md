@@ -12,7 +12,7 @@ Regenerate: run the dump, then repeat the `jq` filters below.
 | Mods | `.Mods` → Serration |
 | Arcane | `.Arcanes` → Arcane Energize |
 | Blueprints | every group (`Blueprints`, `Suits`) → Saryn Prime (+ Chassis, Neuroptics, Systems), Braton Prime |
-| Resources | `.Resources` → Neurodes, Orokin Cell, Rubedo, Nano Spores, Alloy Plate, Salvage, Neural Sensors, Nitain Extract |
+| Resources | `.Resources` → Neurodes, Orokin Cell, Rubedo, Nano Spores, Alloy Plate, Salvage, Neural Sensors, Nitain Extract; `GenericComponents` (whole, added by Task 3) |
 | Void | `.RelicData` → every relic whose `Drops` include Saryn Prime or Braton Prime |
 | DropTables | first 2 `.Missions` whose rewards name one of those relics; `Enemies["Aerial Commander"]`; `Containers.Carrypod` |
 | Missions | `RegionResources` (whole) + `MissionDetails` rows whose `DropTableAlias` is one of the kept missions |

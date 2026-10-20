@@ -163,5 +163,549 @@
       "RetrieverModAble": true,
       "Type": "Resource"
     }
+  },
+  "GenericComponents": {
+    "Aegis": {
+      "Description": "A Aegis component",
+      "Image": "Pouch.png",
+      "Link": "Blueprints",
+      "Name": "Aegis",
+      "Tradable": true
+    },
+    "Archwing Harness": {
+      "Description": "A Archwing Harness component",
+      "Image": "GenericArchwingHarness.png",
+      "Link": "Blueprints",
+      "Name": "Harness"
+    },
+    "Archwing Systems": {
+      "Description": "A Archwing Systems component",
+      "Image": "GenericArchwingSystems.png",
+      "Link": "Blueprints",
+      "Name": "Systems"
+    },
+    "Archwing Wings": {
+      "Description": "A Archwing Wings component",
+      "Image": "GenericArchwingWings.png",
+      "Link": "Blueprints",
+      "Name": "Wings"
+    },
+    "Aspect Chassis": {
+      "Description": "A Aspect Chassis component",
+      "Image": "Chassis.png",
+      "Link": "Blueprints",
+      "Name": "Chassis"
+    },
+    "Aspect Neuroptics": {
+      "Description": "A Aspect Neuroptics component",
+      "Image": "Helmet.png",
+      "Link": "Blueprints",
+      "Name": "Neuroptics"
+    },
+    "Aspect Systems": {
+      "Description": "A Aspect Systems component",
+      "Image": "Systems.png",
+      "Link": "Blueprints",
+      "Name": "Systems"
+    },
+    "Avionics": {
+      "Description": "A Avionics component",
+      "Image": "GenericLandingCraftSystems.png",
+      "Link": "Blueprints",
+      "Name": "Avionics"
+    },
+    "Band": {
+      "Description": "A Band component",
+      "Image": "GenericComponentPrimeLatch.png",
+      "Link": "Blueprints",
+      "Name": "Band"
+    },
+    "Barrel": {
+      "Description": "A Barrel component",
+      "Image": "Barrel.png",
+      "Link": "Blueprints",
+      "Name": "Barrel"
+    },
+    "Barrels": {
+      "Description": "A Barrels component",
+      "Image": "Barrel.png",
+      "Link": "Blueprints",
+      "Name": "Barrels",
+      "Tradable": true
+    },
+    "Blade": {
+      "Description": "A Blade component",
+      "Image": "Blade.png",
+      "Link": "Blueprints",
+      "Name": "Blade",
+      "Tradable": true
+    },
+    "Blades": {
+      "Description": "A Blades component",
+      "Image": "Blade.png",
+      "Link": "Blueprints",
+      "Name": "Blades"
+    },
+    "Buckle": {
+      "Description": "A Buckle component",
+      "Image": "GenericComponentPrimeLatch.png",
+      "Link": "Blueprints",
+      "Name": "Buckle"
+    },
+    "Carapace": {
+      "Description": "A Carapace component",
+      "Image": "Chassis.png",
+      "Link": "Blueprints",
+      "Name": "Carapace"
+    },
+    "Cerebrum": {
+      "Description": "A Cerebrum component",
+      "Image": "Helmet.png",
+      "Link": "Blueprints",
+      "Name": "Cerebrum"
+    },
+    "Chassis": {
+      "Description": "A Chassis component",
+      "Image": "Chassis.png",
+      "Link": "Blueprints",
+      "Name": "Chassis"
+    },
+    "Core": {
+      "Description": "A Core component",
+      "Image": "Link.png",
+      "Link": "Blueprints",
+      "Name": "Core"
+    },
+    "Disc": {
+      "Description": "A Disc component",
+      "Image": "Link.png",
+      "Link": "Blueprints",
+      "Name": "Disc"
+    },
+    "Engine": {
+      "Description": "A Engine component",
+      "Image": "GenericWeaponHilt.png",
+      "Link": "Blueprints",
+      "Name": "Engine",
+      "Tradable": true
+    },
+    "Engines": {
+      "Description": "A Engines component",
+      "Image": "GenericLandingCraftEngines.png",
+      "Link": "Blueprints",
+      "Name": "Engines"
+    },
+    "Fuselage": {
+      "Description": "A Fuselage component",
+      "Image": "GenericLandingCraftFuselage.png",
+      "Link": "Blueprints",
+      "Name": "Fuselage"
+    },
+    "Gauntlet": {
+      "Description": "A Gauntlet component",
+      "Image": "Handle.png",
+      "Link": "Blueprints",
+      "Name": "Gauntlet"
+    },
+    "Glove": {
+      "Description": "A Glove component",
+      "Image": "GenericWeaponHilt.png",
+      "Link": "Blueprints",
+      "Name": "Glove"
+    },
+    "Grip": {
+      "Description": "A Grip component",
+      "Image": "GenericWeaponHilt.png",
+      "Link": "Blueprints",
+      "Name": "Grip",
+      "Tradable": true
+    },
+    "Guard": {
+      "Description": "A Guard component",
+      "Image": "Pouch.png",
+      "Link": "Blueprints",
+      "Name": "Guard",
+      "Tradable": true
+    },
+    "Gun Chassis": {
+      "Description": "A Gun Chassis component",
+      "Image": "Stock.png",
+      "Link": "Blueprints",
+      "Name": "Chassis"
+    },
+    "Gun Handle": {
+      "Description": "A Gun Handle component",
+      "Image": "Receiver.png",
+      "Link": "Blueprints",
+      "Name": "Handle"
+    },
+    "Handle": {
+      "Description": "A Handle component",
+      "Image": "GenericWeaponHilt.png",
+      "Link": "Blueprints",
+      "Name": "Handle"
+    },
+    "Head": {
+      "Description": "A Head component",
+      "Image": "GenericWeaponBlade.png",
+      "Link": "Blueprints",
+      "Name": "Head",
+      "Tradable": true
+    },
+    "Heatsink": {
+      "Description": "A Heatsink component",
+      "Image": "Link.png",
+      "Link": "Blueprints",
+      "Name": "Heatsink"
+    },
+    "Hilt": {
+      "Description": "A Hilt component",
+      "Image": "GenericWeaponHilt.png",
+      "Link": "Blueprints",
+      "Name": "Hilt",
+      "Tradable": true
+    },
+    "Hook": {
+      "Description": "A Hook component",
+      "Image": "Blade.png",
+      "Link": "Blueprints",
+      "Name": "Hook",
+      "Tradable": true
+    },
+    "Left Gauntlet": {
+      "Description": "A Left Gauntlet component",
+      "Image": "Blade.png",
+      "Link": "Blueprints",
+      "Name": "Left Gauntlet",
+      "Tradable": true
+    },
+    "Limbs": {
+      "Description": "A Limbs component",
+      "Image": "Stock.png",
+      "Link": "Blueprints",
+      "Name": "Limbs"
+    },
+    "Link": {
+      "Description": "A Link component",
+      "Image": "Link.png",
+      "Link": "Blueprints",
+      "Name": "Link",
+      "Tradable": true
+    },
+    "Lower Limb": {
+      "Description": "A Lower Limb component",
+      "Image": "Blade.png",
+      "Link": "Blueprints",
+      "Name": "Lower Limb"
+    },
+    "Motor": {
+      "Description": "A Motor component",
+      "Image": "GenericGunStock.png",
+      "Link": "Blueprints",
+      "Name": "Motor"
+    },
+    "Neuroptics": {
+      "Description": "A Neuroptics component",
+      "Image": "Helmet.png",
+      "Link": "Blueprints",
+      "Name": "Neuroptics"
+    },
+    "Pouch": {
+      "Description": "A Pouch component",
+      "Image": "Pouch.png",
+      "Link": "Blueprints",
+      "Name": "Pouch",
+      "Tradable": true
+    },
+    "Prime Archwing Systems": {
+      "Description": "A Prime Archwing Systems component",
+      "Image": "GenericArchwingSystemsPrime.png",
+      "Link": "Blueprints",
+      "Name": "Systems",
+      "Tradable": true
+    },
+    "Prime Band": {
+      "Description": "A Prime Band component",
+      "Image": "GenericComponentPrimeLatch.png",
+      "Link": "Blueprints",
+      "Name": "Band",
+      "Tradable": true
+    },
+    "Prime Barrel": {
+      "Description": "A Prime Barrel component",
+      "Image": "GenericGunPrimeBarrel.png",
+      "Link": "Blueprints",
+      "Name": "Barrel",
+      "Tradable": true
+    },
+    "Prime Blade": {
+      "Description": "A Prime Blade component",
+      "Image": "GenericWeaponPrimeBlade.png",
+      "Link": "Blueprints",
+      "Name": "Blade",
+      "Tradable": true
+    },
+    "Prime Blades": {
+      "Description": "A Prime Blades component",
+      "Image": "GenericWeaponPrimeBlade.png",
+      "Link": "Blueprints",
+      "Name": "Blades",
+      "Tradable": true
+    },
+    "Prime Boot": {
+      "Description": "A Prime Boot component",
+      "Image": "GenericWeaponPrimeGuard.png",
+      "Link": "Blueprints",
+      "Name": "Boot",
+      "Tradable": true
+    },
+    "Prime Buckle": {
+      "Description": "A Prime Buckle component",
+      "Image": "GenericComponentPrimePlug.png",
+      "Link": "Blueprints",
+      "Name": "Buckle",
+      "Tradable": true
+    },
+    "Prime Carapace": {
+      "Description": "A Prime Carapace component",
+      "Image": "PrimeChassis.png",
+      "Link": "Blueprints",
+      "Name": "Carapace",
+      "Tradable": true
+    },
+    "Prime Cerebrum": {
+      "Description": "A Prime Cerebrum component",
+      "Image": "PrimeHelmet.png",
+      "Link": "Blueprints",
+      "Name": "Cerebrum",
+      "Tradable": true
+    },
+    "Prime Chain": {
+      "Description": "A Prime Chain component",
+      "Image": "GenericGunPrimeStock.png",
+      "Link": "Blueprints",
+      "Name": "Chain",
+      "Tradable": true
+    },
+    "Prime Chassis": {
+      "Description": "A Prime Chassis component",
+      "Image": "PrimeChassis.png",
+      "Link": "Blueprints",
+      "Name": "Chassis"
+    },
+    "Prime Disc": {
+      "Description": "A Prime Disc component",
+      "Image": "GenericWeaponPrimeBlade.png",
+      "Link": "Blueprints",
+      "Name": "Disc",
+      "Tradable": true
+    },
+    "Prime Gauntlet": {
+      "Description": "A Prime Gauntlet component",
+      "Image": "GenericWeaponPrimeHilt.png",
+      "Link": "Blueprints",
+      "Name": "Gauntlet",
+      "Tradable": true
+    },
+    "Prime Grip": {
+      "Description": "A Prime Grip component",
+      "Image": "GenericComponentPrimeLatch.png",
+      "Link": "Blueprints",
+      "Name": "Grip",
+      "Tradable": true
+    },
+    "Prime Guard": {
+      "Description": "A Prime Guard component",
+      "Image": "GenericWeaponPrimeGuard.png",
+      "Link": "Blueprints",
+      "Name": "Guard",
+      "Tradable": true
+    },
+    "Prime Handle": {
+      "Description": "A Prime Handle component",
+      "Image": "GenericWeaponPrimeHilt.png",
+      "Link": "Blueprints",
+      "Name": "Handle",
+      "Tradable": true
+    },
+    "Prime Harness": {
+      "Description": "A Prime Harness component",
+      "Image": "GenericArchwingHarnessPrime.png",
+      "Link": "Blueprints",
+      "Name": "Harness",
+      "Tradable": true
+    },
+    "Prime Head": {
+      "Description": "A Prime Head component",
+      "Image": "GenericWeaponPrimeBlade.png",
+      "Link": "Blueprints",
+      "Name": "Head",
+      "Tradable": true
+    },
+    "Prime Hilt": {
+      "Description": "A Prime Hilt component",
+      "Image": "GenericWeaponPrimeHilt.png",
+      "Link": "Blueprints",
+      "Name": "Hilt",
+      "Tradable": true
+    },
+    "Prime Link": {
+      "Description": "A Prime Link component",
+      "Image": "GenericComponentPrimePlug.png",
+      "Link": "Blueprints",
+      "Name": "Link",
+      "Tradable": true
+    },
+    "Prime Lower Limb": {
+      "Description": "A Prime Lower Limb component",
+      "Image": "GenericWeaponPrimeBlade.png",
+      "Link": "Blueprints",
+      "Name": "Lower Limb",
+      "Tradable": true
+    },
+    "Prime Neuroptics": {
+      "Description": "A Prime Neuroptics component",
+      "Image": "PrimeHelmet.png",
+      "Link": "Blueprints",
+      "Name": "Neuroptics"
+    },
+    "Prime Ornament": {
+      "Description": "A Prime Ornament component",
+      "Image": "GenericComponentPrimePlug.png",
+      "Link": "Blueprints",
+      "Name": "Ornament",
+      "Tradable": true
+    },
+    "Prime Pouch": {
+      "Description": "A Prime Pouch component",
+      "Image": "GenericComponentPrimeLatch.png",
+      "Link": "Blueprints",
+      "Name": "Pouch",
+      "Tradable": true
+    },
+    "Prime Receiver": {
+      "Description": "A Prime Receiver component",
+      "Image": "GenericGunPrimeReceiver.png",
+      "Link": "Blueprints",
+      "Name": "Receiver",
+      "Tradable": true
+    },
+    "Prime Sentinel Systems": {
+      "Description": "A Prime Sentinel Systems component",
+      "Image": "PrimeSystems.png",
+      "Link": "Blueprints",
+      "Name": "Systems"
+    },
+    "Prime Stars": {
+      "Description": "A Prime Stars component",
+      "Image": "GenericWeaponPrimeBlade.png",
+      "Link": "Blueprints",
+      "Name": "Stars",
+      "Tradable": true
+    },
+    "Prime Stock": {
+      "Description": "A Prime Stock component",
+      "Image": "GenericGunPrimeStock.png",
+      "Link": "Blueprints",
+      "Name": "Stock",
+      "Tradable": true
+    },
+    "Prime String": {
+      "Description": "A Prime String component",
+      "Image": "GenericGunPrimeStock.png",
+      "Link": "Blueprints",
+      "Name": "String",
+      "Tradable": true
+    },
+    "Prime Systems": {
+      "Description": "A Prime Systems component",
+      "Image": "PrimeSystems.png",
+      "Link": "Blueprints",
+      "Name": "Systems"
+    },
+    "Prime Upper Limb": {
+      "Description": "A Prime Upper Limb component",
+      "Image": "GenericWeaponPrimeBlade.png",
+      "Link": "Blueprints",
+      "Name": "Upper Limb",
+      "Tradable": true
+    },
+    "Prime Wings": {
+      "Description": "A Prime Wings component",
+      "Image": "GenericArchwingWingsPrime.png",
+      "Link": "Blueprints",
+      "Name": "Wings",
+      "Tradable": true
+    },
+    "Receiver": {
+      "Description": "A Receiver component",
+      "Image": "Receiver.png",
+      "Link": "Blueprints",
+      "Name": "Receiver"
+    },
+    "Receivers": {
+      "Description": "A Receivers component",
+      "Image": "Receiver.png",
+      "Link": "Blueprints",
+      "Name": "Receivers",
+      "Tradable": true
+    },
+    "Right Gauntlet": {
+      "Description": "A Right Gauntlet component",
+      "Image": "Blade.png",
+      "Link": "Blueprints",
+      "Name": "Right Gauntlet",
+      "Tradable": true
+    },
+    "Rivet": {
+      "Description": "A Rivet component",
+      "Image": "Link.png",
+      "Link": "Blueprints",
+      "Name": "Rivet"
+    },
+    "Sentinel Systems": {
+      "Description": "A Sentinel Systems component",
+      "Image": "Systems.png",
+      "Link": "Blueprints",
+      "Name": "Systems"
+    },
+    "Stars": {
+      "Description": "A Stars component",
+      "Image": "Blade.png",
+      "Link": "Blueprints",
+      "Name": "Stars",
+      "Tradable": true
+    },
+    "Stock": {
+      "Description": "A Stock component",
+      "Image": "Stock.png",
+      "Link": "Blueprints",
+      "Name": "Stock"
+    },
+    "String": {
+      "Description": "A String component",
+      "Image": "Stock.png",
+      "Link": "Blueprints",
+      "Name": "String"
+    },
+    "Subcortex": {
+      "Description": "A Subcortex component",
+      "Image": "GenericComponentPlug.png",
+      "Link": "Blueprints",
+      "Name": "Subcortex",
+      "Tradable": true
+    },
+    "Systems": {
+      "Description": "A Systems component",
+      "Image": "Systems.png",
+      "Link": "Blueprints",
+      "Name": "Systems"
+    },
+    "Upper Limb": {
+      "Description": "A Upper Limb component",
+      "Image": "Blade.png",
+      "Link": "Blueprints",
+      "Name": "Upper Limb"
+    }
   }
 }
