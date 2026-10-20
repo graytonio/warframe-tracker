@@ -16,6 +16,8 @@ Regenerate: run the dump, then repeat the `jq` filters below.
 | Void | `.RelicData` → every relic whose `Drops` include Saryn Prime or Braton Prime |
 | DropTables | first 2 `.Missions` whose rewards name one of those relics; `Enemies["Aerial Commander"]`; `Containers.Carrypod` |
 | Missions | `RegionResources` (whole) + `MissionDetails` rows whose `DropTableAlias` is one of the kept missions |
+| Enemies/data/corpus | Alad V (Planets + TileSets), 002-ER (Planets only), Taro Crewship (Railjack, drops Isos), Scrofa Crewman (`Tilesets` spelling), Derivator Crewman (`Zariman Ten Zero`) |
+| Enemies/data/* (other 11) | `{}` |
 
 Filters (`pick` = `with_entries(select(.key as $k | $names | index($k)))`):
 
@@ -29,4 +31,8 @@ jq --argjson relics "$(jq -c '.RelicData|keys' fixtures/Module_Void_data.json)" 
   Containers: (.Containers | {"Carrypod": .Carrypod})}' Module_DropTables_data.json
 jq --argjson a "$(jq -c '.Missions|keys' fixtures/Module_DropTables_data.json)" \
   '{RegionResources, MissionDetails: [.MissionDetails[] | select(.DropTableAlias as $d | $a | index($d))]}' Module_Missions_data.json
+jq --argjson names '["Alad V","002-ER","Taro Crewship","Scrofa Crewman","Derivator Crewman"]' \
+  'with_entries(select(.key as $k | $names | index($k)))' Module_Enemies_data_corpus.json
+for f in anarchs grineer infestation narmer orokin scaldra sentient stalker techrot themurmur unaffiliated; do
+  echo '{}' > fixtures/Module_Enemies_data_$f.json; done
 ```

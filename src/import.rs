@@ -1,5 +1,5 @@
 use crate::lua;
-use crate::wiki::{MODULES, WikiClient};
+use crate::wiki::{ENEMY_MODULES, MODULES, WikiClient};
 use anyhow::Context;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
@@ -7,7 +7,7 @@ use sqlx::{PgConnection, PgPool};
 use std::collections::{HashMap, HashSet};
 
 /// Bump whenever `map_modules` output changes, so the next run re-maps even if the wiki didn't change.
-const IMPORT_VERSION: i64 = 2;
+const IMPORT_VERSION: i64 = 4;
 
 #[derive(Serialize, Default, Debug)]
 pub struct ImportSummary {
@@ -136,7 +136,8 @@ pub async fn map_modules(
             .with_context(|| format!("module {t} missing"))
     };
     sqlx::raw_sql(
-        "DELETE FROM recipes; DELETE FROM recipe_meta; DELETE FROM relic_drops; DELETE FROM drop_sources;",
+        "DELETE FROM recipes; DELETE FROM recipe_meta; DELETE FROM relic_drops; DELETE FROM drop_sources;
+         DELETE FROM enemy_locations;",
     )
     .execute(&mut *tx)
     .await?;
@@ -416,7 +417,9 @@ pub async fn map_modules(
                 continue;
             }
             let planet = match kind {
+                // A link to the container's own page ("Reinforced Carrypod") is no place.
                 "container" => link_place(rec["Link"].as_str())
+                    .filter(|p| p != name)
                     .and_then(normalise_place)
                     .unwrap_or_default(),
                 _ => String::new(),
@@ -457,7 +460,10 @@ pub async fn map_modules(
             .filter_map(Value::as_str)
         {
             match resolve(&ids, n, &["resource"]) {
-                Some((_, id)) => rows.push("planet", planet, None, id, None, None, false, planet),
+                Some((_, id)) => {
+                    let place = normalise_place(planet).unwrap_or_default();
+                    rows.push("planet", planet, None, id, None, None, false, &place)
+                }
                 None => s.unresolved.push(format!("{planet}: {n}")),
             }
         }
@@ -477,6 +483,47 @@ pub async fn map_modules(
     .bind(rows.quantity)
     .bind(rows.pvp)
     .bind(rows.planet)
+    .execute(&mut *tx)
+    .await?;
+
+    // 6. Enemy locations: General.Planets × TileSets (some records spell it `Tilesets`).
+    let strs = |v: &Value| -> Vec<String> {
+        v.as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(|s| s.trim().to_string())
+            .collect()
+    };
+    let mut locs: HashSet<(String, String, String)> = HashSet::new();
+    for &t in ENEMY_MODULES {
+        for (name, rec) in obj(module(t)?, t)? {
+            let g = &rec["General"];
+            let mut tilesets = strs(&g["TileSets"]);
+            if tilesets.is_empty() {
+                tilesets = strs(&g["Tilesets"]);
+            }
+            if tilesets.is_empty() {
+                tilesets.push(String::new());
+            }
+            for p in strs(&g["Planets"])
+                .iter()
+                .filter_map(|p| normalise_place(p))
+            {
+                for ts in &tilesets {
+                    locs.insert((name.clone(), p.clone(), ts.clone()));
+                }
+            }
+        }
+    }
+    let (en, ep, et): (Vec<String>, Vec<String>, Vec<String>) = locs.into_iter().collect();
+    sqlx::query(
+        "INSERT INTO enemy_locations (enemy_name, planet, tileset)
+         SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[])",
+    )
+    .bind(en)
+    .bind(ep)
+    .bind(et)
     .execute(&mut *tx)
     .await?;
 
@@ -624,12 +671,19 @@ async fn upsert_item(
     data: &Value,
 ) -> sqlx::Result<i64> {
     let is_prime = name.ends_with(" Prime") || name.contains(" Prime ");
+    let hint = if cat == "resource" {
+        location_hint(data)
+    } else {
+        None
+    };
     sqlx::query_scalar(
-        "INSERT INTO items (wiki_name, category, subcategory, is_prime, is_vaulted, image, wiki_link, data, removed_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL)
+        "INSERT INTO items (wiki_name, category, subcategory, is_prime, is_vaulted, image, wiki_link, data,
+           location_hint, removed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL)
          ON CONFLICT (category, wiki_name) DO UPDATE SET subcategory = EXCLUDED.subcategory,
            is_prime = EXCLUDED.is_prime, is_vaulted = EXCLUDED.is_vaulted, image = EXCLUDED.image,
-           wiki_link = EXCLUDED.wiki_link, data = EXCLUDED.data, removed_at = NULL
+           wiki_link = EXCLUDED.wiki_link, data = EXCLUDED.data, location_hint = EXCLUDED.location_hint,
+           removed_at = NULL
          RETURNING id",
     )
     .bind(name)
@@ -640,8 +694,19 @@ async fn upsert_item(
     .bind(data["Image"].as_str())
     .bind(link)
     .bind(data)
+    .bind(hint)
     .fetch_one(&mut *tx)
     .await
+}
+
+/// The rest of the `Location:` line in a resource's `Description`, if any.
+fn location_hint(data: &Value) -> Option<&str> {
+    data["Description"]
+        .as_str()?
+        .split('\n')
+        .find_map(|l| l.trim_end_matches('\r').trim().strip_prefix("Location:"))
+        .map(str::trim)
+        .filter(|h| !h.is_empty())
 }
 
 #[cfg(test)]
@@ -769,6 +834,100 @@ mod tests {
                 ),
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn container_link_places() {
+        let pool = test_pool().await;
+        let mut m = fixtures();
+        let c = &mut m.get_mut("Module:DropTables/data").unwrap()["Containers"];
+        // Fixture Carrypod links "Zariman Ten Zero"; a self-link is not a place.
+        c["Carrypod"]["Resources"] = json!([["Rubedo", "Resource", 10]]);
+        c["Reinforced Carrypod"] = json!({"Link": "Reinforced Carrypod",
+            "Resources": [["Rubedo", "Resource", 10]]});
+        import_with(&pool, &m).await;
+        let rows: Vec<(String, Option<String>)> = sqlx::query_as(
+            "SELECT DISTINCT source_name, planet FROM drop_sources WHERE source_kind='container' ORDER BY 1",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            rows,
+            vec![
+                ("Carrypod".into(), Some("Zariman".into())),
+                ("Reinforced Carrypod".into(), None)
+            ]
+        );
+    }
+
+    async fn enemy_locs(pool: &PgPool, name: &str) -> Vec<(String, String)> {
+        sqlx::query_as(
+            "SELECT planet, tileset FROM enemy_locations WHERE enemy_name = $1 ORDER BY 1, 2",
+        )
+        .bind(name)
+        .fetch_all(pool)
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn enemy_planets_normalised() {
+        let pool = test_pool().await;
+        let mut m = fixtures();
+        m.get_mut("Module:Enemies/data/unaffiliated")
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert(
+                "Test Thrax".into(),
+                json!({"General": {"Planets": ["Zariman Ten Zero", "", "Any near Kuva Fortress"], "Tilesets": ["Zariman"]}}),
+            );
+        import_with(&pool, &m).await;
+        assert_eq!(
+            enemy_locs(&pool, "Test Thrax").await,
+            vec![
+                ("Any near Kuva Fortress".into(), "Zariman".into()),
+                ("Zariman".into(), "Zariman".into())
+            ]
+        );
+        assert_eq!(
+            enemy_locs(&pool, "Alad V").await,
+            vec![("Jupiter".into(), "Corpus Gas City".into())]
+        );
+        assert_eq!(
+            enemy_locs(&pool, "002-ER").await,
+            vec![("Neptune".into(), "".into())]
+        );
+        // Real records: the `Tilesets` spelling, and the Zariman alias.
+        assert_eq!(
+            enemy_locs(&pool, "Scrofa Crewman").await,
+            vec![("Venus".into(), "Deepmines".into())]
+        );
+        assert_eq!(
+            enemy_locs(&pool, "Derivator Crewman").await,
+            vec![("Zariman".into(), "Zariman (Tileset)".into())]
+        );
+    }
+
+    #[tokio::test]
+    async fn location_hint_parsed_from_description() {
+        let pool = test_pool().await;
+        import(&pool).await;
+        let hint: Option<String> = sqlx::query_scalar(
+            "SELECT location_hint FROM items WHERE category='resource' AND wiki_name='Neurodes'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(hint.as_deref(), Some("Earth, Lua, Eris, and Deimos"));
+        let none: Option<String> = sqlx::query_scalar(
+            "SELECT location_hint FROM items WHERE category='warframe' AND wiki_name='Saryn Prime'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(none, None);
     }
 
     #[test]
@@ -931,7 +1090,7 @@ mod tests {
         .unwrap();
         assert_eq!(earth, 1);
         let unplaced: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM drop_sources WHERE source_kind='planet' AND planet IS DISTINCT FROM source_name",
+            "SELECT count(*) FROM drop_sources WHERE source_kind='planet' AND planet IS NULL",
         )
         .fetch_one(&pool)
         .await
