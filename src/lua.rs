@@ -1,6 +1,15 @@
 use anyhow::{Context, anyhow};
-use mlua::{Lua, LuaOptions, LuaSerdeExt, StdLib, Value, serde::DeserializeOptions};
+use mlua::chunk::ChunkMode;
+use mlua::{
+    HookTriggers, Lua, LuaOptions, LuaSerdeExt, StdLib, Value, VmState, serde::DeserializeOptions,
+};
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
+
+/// Wiki modules are editable by anyone, so a vandalised one must fail the import, not hang or OOM it.
+/// The largest real module evaluates in well under a second and ~100 MB.
+const MEMORY_LIMIT: usize = 512 * 1024 * 1024;
+const TIME_LIMIT: Duration = Duration::from_secs(30);
 
 /// Lookup indexes a module builds from its own data. They have non-string keys
 /// (JSON can't hold them) and duplicate every record, so they're dropped.
@@ -16,6 +25,17 @@ pub fn eval_module(
         StdLib::STRING | StdLib::TABLE | StdLib::MATH,
         LuaOptions::default(),
     )?;
+    lua.set_memory_limit(MEMORY_LIMIT)?;
+    let deadline = Instant::now() + TIME_LIMIT;
+    lua.set_global_hook(
+        HookTriggers::new().every_nth_instruction(10_000),
+        move |_, _| {
+            if Instant::now() > deadline {
+                return Err(mlua::Error::runtime("module took too long to evaluate"));
+            }
+            Ok(VmState::Continue)
+        },
+    )?;
     let g = lua.globals();
     for f in ["load", "loadstring", "loadfile", "dofile"] {
         g.set(f, Value::Nil)?;
@@ -30,7 +50,12 @@ pub fn eval_module(
         let code = sources
             .get(&name)
             .ok_or_else(|| mlua::Error::runtime(format!("require of unknown module {name}")))?;
-        let v: Value = lua.load(code.as_str()).set_name(name.as_str()).eval()?;
+        // Text only: Lua 5.1 has no bytecode verifier.
+        let v: Value = lua
+            .load(code.as_str())
+            .set_name(name.as_str())
+            .set_mode(ChunkMode::Text)
+            .eval()?;
         loaded.set(name.as_str(), v.clone())?;
         Ok(v)
     })?;
@@ -113,6 +138,23 @@ mod tests {
         let v = eval_module("Module:Missions/data", &s).unwrap();
         assert_eq!(v["RegionResources"]["Earth"][0], "Rubedo");
         assert!(v.get("by").is_none());
+    }
+
+    #[test]
+    fn runaway_modules_fail_instead_of_hanging_or_oom() {
+        let bomb = src(&[("Module:A", "return string.rep('x', 2^30)")]);
+        assert!(eval_module("Module:A", &bomb).is_err());
+        // ponytail: this test spends TIME_LIMIT (30s) spinning; shrink it if the suite gets slow.
+        let spin = src(&[("Module:A", "while true do end")]);
+        assert!(eval_module("Module:A", &spin).is_err());
+    }
+
+    #[test]
+    fn bytecode_chunks_are_rejected() {
+        // "\27Lua" is the binary chunk signature.
+        let s = src(&[("Module:A", "\x1bLuaQ\0")]);
+        let err = eval_module("Module:A", &s).unwrap_err();
+        assert!(format!("{err:#}").contains("binary"), "{err:#}");
     }
 
     #[test]

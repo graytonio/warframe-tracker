@@ -30,6 +30,7 @@ impl WikiClient {
         );
         let http = reqwest::Client::builder()
             .user_agent(ua)
+            .timeout(std::time::Duration::from_secs(120))
             .build()
             .expect("reqwest client");
         Self {

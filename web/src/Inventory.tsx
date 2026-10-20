@@ -12,7 +12,11 @@ export default function Inventory() {
     <>
       <h1>Inventory</h1>
       <ItemSearch label="Add resource" category="resource"
-        onPick={item => send('PATCH', `/inventory/${item.id}`, { count: 0 }).then(reload)} />
+        onPick={async item => {
+          // Already tracked: don't reset its count to 0.
+          if (data?.some(r => r.item.id === item.id)) return
+          return send('PATCH', `/inventory/${item.id}`, { count: 0 }).then(reload, e => setActionError(String(e.message ?? e)))
+        }} />
       {actionError && <p className="error" role="alert">{actionError}</p>}
       <Status error={error} loading={!data} />
       {data?.length === 0 && <p className="muted">No inventory yet.</p>}

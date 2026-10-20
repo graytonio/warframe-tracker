@@ -97,7 +97,7 @@ fn build(
             .into_iter()
             .flatten()
             .filter(|(c, _)| nodes.contains_key(c))
-            .map(|(c, n)| build(*c, needed * n, depth + 1, nodes, kids))
+            .map(|(c, n)| build(*c, needed.saturating_mul(*n), depth + 1, nodes, kids))
             .collect()
     };
     ProgressNode {
