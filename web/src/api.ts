@@ -4,7 +4,7 @@ export type ItemSummary = { id: number; name: string; category: string; subcateg
   is_prime: boolean; is_vaulted: boolean | null; image_url: string | null; wiki_url: string | null };
 
 export type ProgressNode = { item: ItemSummary; needed: number; have: number; obtained: boolean;
-  covered: boolean; children: ProgressNode[] };
+  rank: number | null; max_rank: number | null; covered: boolean; children: ProgressNode[] };
 
 export type Source = { kind: "mission" | "enemy" | "container" | "planet" | "relic"; name: string;
   rotation: string | null; chance: number | null; quantity: number | null;

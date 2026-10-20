@@ -113,6 +113,9 @@ CREATE TABLE IF NOT EXISTS inventory (
   PRIMARY KEY (user_id, item_id)
 );
 
+-- Highest rank owned, for arcanes (synced from the game or set by hand); null elsewhere.
+ALTER TABLE inventory ADD COLUMN IF NOT EXISTS rank integer CHECK (rank >= 0);
+
 -- Only the SHA-256 of a token is stored; the plaintext is printed once by `token create`.
 CREATE TABLE IF NOT EXISTS api_tokens (
   id bigserial PRIMARY KEY,
