@@ -29,6 +29,41 @@ pub fn flatten(v: &Value) -> BTreeMap<String, i64> {
     m
 }
 
+/// Highest rank (`UpgradeFingerprint` `lvl`) of any copy, per `ItemType`. DE stores the
+/// fingerprint as a JSON string, sometimes wrapped twice; unranked copies have none.
+pub fn ranks(v: &Value) -> BTreeMap<String, i64> {
+    let mut m = BTreeMap::new();
+    for arr in v
+        .as_object()
+        .into_iter()
+        .flat_map(|o| o.values())
+        .filter_map(Value::as_array)
+    {
+        for e in arr {
+            let (Some(t), Some(lvl)) = (
+                e["ItemType"].as_str(),
+                fingerprint_level(&e["UpgradeFingerprint"]),
+            ) else {
+                continue;
+            };
+            let r = m.entry(t.to_string()).or_insert(lvl);
+            *r = (*r).max(lvl);
+        }
+    }
+    m
+}
+
+fn fingerprint_level(f: &Value) -> Option<i64> {
+    let mut cur = f.clone();
+    for _ in 0..3 {
+        match cur {
+            Value::String(s) => cur = serde_json::from_str(&s).ok()?,
+            _ => break,
+        }
+    }
+    cur["lvl"].as_i64().filter(|l| *l >= 0)
+}
+
 /// `LastInventorySync.$oid`: changes whenever DE's inventory does.
 pub fn sync_id(v: &Value) -> Option<String> {
     v["LastInventorySync"]["$oid"].as_str().map(String::from)
@@ -51,6 +86,21 @@ mod tests {
         assert_eq!(m["/Lotus/Weapons/Tenno/Rifle/BratonPrime"], 1);
         assert_eq!(m.len(), 5);
         assert_eq!(sync_id(&v).as_deref(), Some("6700000000000000000000aa"));
+    }
+
+    #[test]
+    fn ranks_take_the_highest_fingerprint_level() {
+        let v = serde_json::json!({
+            "Upgrades": [
+                {"ItemType": "/A", "UpgradeFingerprint": "{\"lvl\":3}"},
+                {"ItemType": "/A", "UpgradeFingerprint": "\"{\\\"lvl\\\":5}\""},
+                {"ItemType": "/B", "UpgradeFingerprint": "{}"},
+                {"ItemType": "/C", "UpgradeFingerprint": "corrupt"},
+                {"ItemType": "/D"}
+            ],
+            "RawUpgrades": [{"ItemType": "/A", "ItemCount": 2}]
+        });
+        assert_eq!(ranks(&v), BTreeMap::from([("/A".to_string(), 5)]));
     }
 
     #[test]

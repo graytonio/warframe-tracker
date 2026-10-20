@@ -95,13 +95,14 @@ fn tick(c: &Config, http: &reqwest::blocking::Client, last: &mut Last) -> anyhow
         return Ok(Push::Done);
     }
     let items = inventory::flatten(&v);
+    let ranks = inventory::ranks(&v);
     let res = http
         .post(format!(
             "{}/api/sync/inventory",
             c.url.trim_end_matches('/')
         ))
         .bearer_auth(&c.token)
-        .json(&serde_json::json!({ "items": items }))
+        .json(&serde_json::json!({ "items": items, "ranks": ranks }))
         .send()
         .context("posting inventory")?;
     let status = res.status();

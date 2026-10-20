@@ -89,17 +89,31 @@ export default function Wishlist() {
       <ul className="entries">
         {data?.map(w => {
           const isMod = w.item.category === 'mod'
+          const isArcane = w.item.category === 'arcane'
           return (
             <li key={w.item.id} className="entry">
-              {isMod ? (
-                <div className="node">
-                  <span className="grow">{w.item.name}</span>
-                  <span className="nowrap">
-                    <CountInput itemId={w.item.id} value={w.tree.have} label={`${w.item.name} count`} onSaved={reload} onError={setActionError} />
-                    {' / '}1
-                  </span>
+              {isMod || isArcane ? (
+                <>
+                  <div className="node">
+                    <span className="grow">{w.item.name}</span>
+                    {isMod ? (
+                      <span className="nowrap">
+                        <CountInput itemId={w.item.id} value={w.tree.have} label={`${w.item.name} count`} onSaved={reload} onError={setActionError} />
+                        {' / '}1
+                      </span>
+                    ) : (
+                      // Synced from the game when a copy is at max rank; tick it by hand otherwise.
+                      <label className="nowrap">
+                        <input
+                          type="checkbox" checked={w.tree.obtained}
+                          onChange={e => act(send('PUT', `/progress/${w.item.id}`, { obtained: e.target.checked }))}
+                        />
+                        {' '}Fully upgraded
+                      </label>
+                    )}
+                  </div>
                   {!w.tree.covered && <Sources itemId={w.item.id} />}
-                </div>
+                </>
               ) : (
                 <details>
                   <summary>

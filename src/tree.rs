@@ -104,8 +104,14 @@ fn build(
             .map(|(c, n)| build(*c, needed.saturating_mul(*n), depth + 1, nodes, kids))
             .collect()
     };
+    // Owning an unranked arcane doesn't count; only the "fully upgraded" flag does.
+    let covered = if item.category == "arcane" {
+        obtained
+    } else {
+        obtained || have >= needed
+    };
     ProgressNode {
-        covered: obtained || have >= needed,
+        covered,
         item,
         needed,
         have,
@@ -167,6 +173,24 @@ mod tests {
         assert!(by("Orokin Cell").covered);
         assert!(!by("Saryn Prime Neuroptics").covered);
         assert!((t.progress_pct() - 66.666).abs() < 0.1);
+    }
+
+    #[tokio::test]
+    async fn arcane_is_covered_only_when_fully_upgraded() {
+        let pool = test_pool().await;
+        sqlx::raw_sql(
+            "INSERT INTO items (id, wiki_name, category) VALUES (9,'Arcane Energize','arcane');
+             INSERT INTO inventory (user_id,item_id,count) VALUES (1,9,3);",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert!(!load_tree(&pool, 1, 9).await.unwrap().unwrap().covered);
+        sqlx::raw_sql("INSERT INTO component_progress VALUES (1,9,true)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert!(load_tree(&pool, 1, 9).await.unwrap().unwrap().covered);
     }
 
     #[tokio::test]
