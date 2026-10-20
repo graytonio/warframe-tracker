@@ -15,10 +15,7 @@ use sqlx::{AssertSqlSafe, PgExecutor, Row};
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/wishlist", get(wishlist).post(wishlist_add))
-        .route(
-            "/wishlist/{item_id}",
-            delete(wishlist_delete),
-        )
+        .route("/wishlist/{item_id}", delete(wishlist_delete))
         .route("/progress/{item_id}", put(progress_put))
         .route("/inventory", get(inventory).put(inventory_put))
         .route("/inventory/{item_id}", patch(inventory_patch))
@@ -332,7 +329,13 @@ mod tests {
         let pool = test_pool().await;
         seed(&pool).await;
         call(&pool, "POST", "/api/wishlist", Some(json!({"item_id": 1}))).await;
-        let put = call(&pool, "PUT", "/api/progress/2", Some(json!({"obtained": true}))).await;
+        let put = call(
+            &pool,
+            "PUT",
+            "/api/progress/2",
+            Some(json!({"obtained": true})),
+        )
+        .await;
         assert_eq!(put.0, StatusCode::NO_CONTENT);
         assert_eq!(call(&pool, "GET", "/api/wishlist", None).await.1, json!([]));
         assert_eq!(
@@ -352,7 +355,13 @@ mod tests {
         let v = call(&pool, "GET", "/api/wishlist", None).await.1;
         assert_eq!(v[0]["progress_pct"], 0.0);
         assert_eq!(v[0]["tree"]["have"], 0);
-        call(&pool, "PATCH", "/api/inventory/7", Some(json!({"count": 1}))).await;
+        call(
+            &pool,
+            "PATCH",
+            "/api/inventory/7",
+            Some(json!({"count": 1})),
+        )
+        .await;
         assert_eq!(call(&pool, "GET", "/api/wishlist", None).await.1, json!([]));
     }
 
