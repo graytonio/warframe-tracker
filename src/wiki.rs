@@ -14,7 +14,35 @@ pub const MODULES: &[&str] = &[
     "Module:Void/data",
     "Module:DropTables/data",
     "Module:Missions/data",
+    "Module:Enemies/data/anarchs",
+    "Module:Enemies/data/corpus",
+    "Module:Enemies/data/grineer",
+    "Module:Enemies/data/infestation",
+    "Module:Enemies/data/narmer",
+    "Module:Enemies/data/orokin",
+    "Module:Enemies/data/scaldra",
+    "Module:Enemies/data/sentient",
+    "Module:Enemies/data/stalker",
+    "Module:Enemies/data/techrot",
+    "Module:Enemies/data/themurmur",
+    "Module:Enemies/data/unaffiliated",
     "Module:Table",
+];
+
+/// The `MODULES` entries that hold enemy records (`General.Planets` / `TileSets`).
+pub const ENEMY_MODULES: &[&str] = &[
+    "Module:Enemies/data/anarchs",
+    "Module:Enemies/data/corpus",
+    "Module:Enemies/data/grineer",
+    "Module:Enemies/data/infestation",
+    "Module:Enemies/data/narmer",
+    "Module:Enemies/data/orokin",
+    "Module:Enemies/data/scaldra",
+    "Module:Enemies/data/sentient",
+    "Module:Enemies/data/stalker",
+    "Module:Enemies/data/techrot",
+    "Module:Enemies/data/themurmur",
+    "Module:Enemies/data/unaffiliated",
 ];
 
 pub struct WikiClient {

@@ -24,3 +24,5 @@ tower = { version = "0.5.3", features = ["util"] }
 
 [workspace]
 members = ["sync"]
+# Agent/git worktrees live under .claude/; keep them out of this workspace.
+exclude = [".claude"]

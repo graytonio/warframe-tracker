@@ -84,6 +84,7 @@ footer { margin: 2rem 0 1rem; padding-top: .75rem; border-top: 1px solid var(--b
 .rows > li { padding: .6rem .75rem; }
 .rows > li.vaulted { opacity: .55; }
 .row-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.row-head h3 { margin: 0; font-size: 1rem; }
 .rows .muted { margin: .25rem 0 0; font-size: .9rem; }
 .chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
 .chips li { font-size: .85rem; padding: .1rem .5rem; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); }

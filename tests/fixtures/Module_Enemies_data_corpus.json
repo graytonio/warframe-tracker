@@ -1,0 +1,222 @@
+{
+  "002-ER": {
+    "General": {
+      "Description": "Designed to execute the 002 Eradication Protocol, this Osprey identifies high-risk brokers and administers injury.",
+      "Faction": "Corpus",
+      "Image": "002-ER.png",
+      "InternalName": "/Lotus/Types/Enemies/CorpusChampions/TeamD/CCTeamDOspreyAgent",
+      "Link": "002-ER",
+      "Missions": [
+        "The Index"
+      ],
+      "Name": "002-ER",
+      "Planets": [
+        "Neptune"
+      ],
+      "Scans": 5,
+      "Type": "Ranged",
+      "Weapons": [
+        ""
+      ]
+    },
+    "Stats": {
+      "Affinity": 150,
+      "Armor": 50,
+      "Attacks": [
+        {
+          "AttackName": "Shot Damage",
+          "DamageDistribution": {
+            "Electric": 1
+          },
+          "Multishot": 7,
+          "TotalDamage": 10
+        },
+        {
+          "AttackName": "Beam Cannon",
+          "BurstCount": 10,
+          "DamageDistribution": {
+            "Impact": 1
+          },
+          "TotalDamage": 20
+        }
+      ],
+      "BaseLevel": 1,
+      "Health": 1000,
+      "Multis": [
+        "Head: 3.0x"
+      ],
+      "Shield": 2500,
+      "SpawnLevel": 30
+    }
+  },
+  "Alad V": {
+    "General": {
+      "Actor": "Kol Crosbie (aka [DE]Skree)",
+      "Description": "",
+      "ExcludedFromSimulacrum": true,
+      "Faction": "Corpus Amalgam",
+      "Image": "AladV.png",
+      "InternalName": "/Lotus/Types/Enemies/Corpus/Vip/AladV/AladBossAgent",
+      "Introduced": "9.3",
+      "Link": "Alad V",
+      "Missions": [
+        "Assassination",
+        "Themisto"
+      ],
+      "Name": "Alad V",
+      "Planets": [
+        "Jupiter"
+      ],
+      "Scans": 3,
+      "TileSets": [
+        "Corpus Gas City"
+      ],
+      "Type": "Boss",
+      "Weapons": [
+        ""
+      ]
+    },
+    "Stats": {
+      "Affinity": 1500,
+      "Armor": 250,
+      "BaseLevel": 1,
+      "Health": 900,
+      "Multis": [
+        "Head: 3.0x"
+      ],
+      "Shield": 1500,
+      "SpawnLevel": 20
+    }
+  },
+  "Derivator Crewman": {
+    "General": {
+      "Abilities": [
+        "Derivator unit"
+      ],
+      "Description": "Using the latest in Corpus weapons technology, this Crewman absorbs damage, until it unleashes it all in a powerful shockwave. The Derivator unit is mounted on the back.",
+      "Faction": "Corpus",
+      "Image": "DerivatorCrewman.png",
+      "InternalName": "/Lotus/Types/Enemies/Corpus/Zariman/CrpInterrupterAgent",
+      "Introduced": "31.5",
+      "Link": "Derivator Crewman",
+      "Name": "Derivator Crewman",
+      "Planets": [
+        "Zariman Ten Zero"
+      ],
+      "Scans": 5,
+      "TileSets": [
+        "Zariman (Tileset)"
+      ],
+      "Type": "Ranged",
+      "Weapons": [
+        "Prova"
+      ]
+    },
+    "Stats": {
+      "Affinity": 150,
+      "Attacks": [
+        {
+          "AttackName": "Shot Damage",
+          "DamageDistribution": {
+            "Electricity": 0.3076,
+            "Impact": 0.2307,
+            "Puncture": 0.2307,
+            "Slash": 0.2307
+          },
+          "StatusChance": 0.1,
+          "TotalDamage": 65
+        }
+      ],
+      "BaseLevel": 1,
+      "Health": 350,
+      "Multis": [
+        "Head: 3.0x"
+      ],
+      "Shield": 100
+    }
+  },
+  "Scrofa Crewman": {
+    "General": {
+      "Description": "A seasoned combatant specializing in subterranean warfrare.",
+      "Faction": "Corpus",
+      "Image": "NokkoEliteSpaceman.png",
+      "InternalName": "/Lotus/Types/Enemies/NokkoColony/Agents/NokkoEliteSpacemanAgent",
+      "Introduced": "40",
+      "Link": "Scrofa Crewman",
+      "Name": "Scrofa Crewman",
+      "Planets": [
+        "Venus"
+      ],
+      "Scans": 5,
+      "Tilesets": [
+        "Deepmines"
+      ],
+      "Weapons": [
+        ""
+      ]
+    },
+    "Stats": {
+      "Affinity": 150,
+      "Attacks": [
+        {
+          "AttackName": "Shot Damage",
+          "DamageDistribution": {
+            "Impact": 0.2,
+            "Puncture": 0.8
+          },
+          "StatusChance": 0.05,
+          "TotalDamage": 20
+        },
+        {
+          "AttackName": "Grenade Damage",
+          "DamageDistribution": {
+            "Blast": 1
+          },
+          "TotalDamage": 80
+        }
+      ],
+      "BaseLevel": 1,
+      "EximusAffinity": 300,
+      "Health": 300,
+      "Multis": [
+        ""
+      ],
+      "Shield": 400
+    }
+  },
+  "Taro Crewship": {
+    "General": {
+      "Description": "Light Corpus support Crewship armed with rapid-fire cannons.",
+      "ExcludedFromSimulacrum": true,
+      "Faction": "Corpus",
+      "FactionDamageOverride": "",
+      "Image": "TaroCrewship.png",
+      "InternalName": "/Lotus/Types/Enemies/Corpus/Railjack/DeepSpace/DeepSpaceCrpCrewshipCaptain",
+      "Introduced": "29.10",
+      "Link": "Taro Crewship",
+      "Missions": [
+        "Empyrean"
+      ],
+      "Name": "Taro Crewship",
+      "Planets": [
+        "Venus Proxima"
+      ],
+      "Scans": 3,
+      "TileSets": [
+        "Free Space"
+      ],
+      "Type": "Crewship",
+      "Weapons": [
+        ""
+      ]
+    },
+    "Stats": {
+      "Affinity": 300,
+      "Armor": 205,
+      "BaseLevel": 1,
+      "Health": 1500,
+      "Shield": 2000,
+      "SpawnLevel": 4
+    }
+  }
+}

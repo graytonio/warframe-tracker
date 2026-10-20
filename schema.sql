@@ -65,6 +65,19 @@ CREATE TABLE IF NOT EXISTS drop_sources (
 CREATE INDEX IF NOT EXISTS drop_sources_item ON drop_sources (item_id);
 -- Conclave (PvP) reward tables; the planner hides them unless asked.
 ALTER TABLE drop_sources ADD COLUMN IF NOT EXISTS is_pvp boolean NOT NULL DEFAULT false;
+-- Structured place (planet or open world) to group by; NULL for enemies (see enemy_locations).
+ALTER TABLE drop_sources ADD COLUMN IF NOT EXISTS planet text;
+CREATE INDEX IF NOT EXISTS drop_sources_planet ON drop_sources (planet);
+
+-- Where an enemy appears, from Module:Enemies/data/<faction> (General.Planets × TileSets).
+CREATE TABLE IF NOT EXISTS enemy_locations (
+  enemy_name text NOT NULL,
+  planet text NOT NULL,
+  tileset text NOT NULL DEFAULT '',
+  PRIMARY KEY (enemy_name, planet, tileset)
+);
+-- Resources: the wiki's prose "Location:" line. Display only.
+ALTER TABLE items ADD COLUMN IF NOT EXISTS location_hint text;
 
 -- User data: every table keyed by user_id.
 

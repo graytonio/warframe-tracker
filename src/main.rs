@@ -16,8 +16,9 @@ async fn main() -> anyhow::Result<()> {
             let pool = db::connect_with_retry(&url).await;
             db::migrate(&pool).await?;
             let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "web/dist".into());
-            let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-            println!("listening on :3000");
+            let port = std::env::var("PORT").unwrap_or_else(|_| "3000".into());
+            let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
+            println!("listening on :{port}");
             axum::serve(listener, app(AppState { pool }, &web_dir)).await?;
         }
         "import" => {

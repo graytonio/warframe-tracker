@@ -87,6 +87,9 @@ pub struct Source {
     pub rarity: Option<String>,
     /// Conclave (PvP) reward table.
     pub pvp: bool,
+    /// Structured place (`drop_sources.planet`); for a relic route, the place of the
+    /// source that drops the relic.
+    pub planet: Option<String>,
 }
 
 /// Direct drops, relics that drop each item, and where those relics drop (`via`),
@@ -96,15 +99,17 @@ pub async fn item_sources(pool: &PgPool, ids: &[i64]) -> sqlx::Result<Vec<(i64, 
         r#"
         SELECT d.item_id AS need, d.source_kind AS kind, d.source_name AS name, d.rotation,
                d.chance::float8 AS chance, d.quantity,
-               NULL::text AS via, NULL::boolean AS vaulted, NULL::text AS rarity, d.is_pvp AS pvp
+               NULL::text AS via, NULL::boolean AS vaulted, NULL::text AS rarity, d.is_pvp AS pvp,
+               d.planet
         FROM drop_sources d WHERE d.item_id = ANY($1)
         UNION ALL
-        SELECT rd.part_item_id, 'relic', r.wiki_name, NULL, NULL, NULL, NULL, r.is_vaulted, rd.rarity, false
+        SELECT rd.part_item_id, 'relic', r.wiki_name, NULL, NULL, NULL, NULL, r.is_vaulted, rd.rarity, false,
+               NULL
         FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
         WHERE rd.part_item_id = ANY($1) AND r.removed_at IS NULL
         UNION ALL
         SELECT rd.part_item_id, d.source_kind, d.source_name, d.rotation, d.chance::float8,
-               d.quantity, r.wiki_name, NULL, NULL, d.is_pvp
+               d.quantity, r.wiki_name, NULL, NULL, d.is_pvp, d.planet
         FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
         JOIN drop_sources d ON d.item_id = rd.relic_item_id
         WHERE rd.part_item_id = ANY($1) AND r.removed_at IS NULL
@@ -126,6 +131,7 @@ pub async fn item_sources(pool: &PgPool, ids: &[i64]) -> sqlx::Result<Vec<(i64, 
                 vaulted: r.get("vaulted"),
                 rarity: r.get("rarity"),
                 pvp: r.get("pvp"),
+                planet: r.get("planet"),
             };
             (r.get("need"), s)
         })
@@ -204,8 +210,8 @@ mod tests {
             (5,'Saryn Old','warframe',false,null,now());
           INSERT INTO recipes VALUES (1,2,1),(2,3,1200);
           INSERT INTO relic_drops VALUES (4,2,'Rare');
-          INSERT INTO drop_sources (source_kind,source_name,rotation,item_id,chance,quantity) VALUES
-            ('planet','Earth',null,3,null,null),('mission','Earth / Mantle','C',4,12.5,1);
+          INSERT INTO drop_sources (source_kind,source_name,rotation,item_id,chance,quantity,planet) VALUES
+            ('planet','Earth',null,3,null,null,'Earth'),('mission','Earth / Mantle','C',4,12.5,1,'Earth');
         "#,
         )
         .execute(pool)
@@ -276,7 +282,8 @@ mod tests {
         assert_eq!(
             relic,
             &json!({"kind": "relic", "name": "Axi S1", "rotation": null, "chance": null,
-                    "quantity": null, "via": null, "vaulted": true, "rarity": "Rare", "pvp": false})
+                    "quantity": null, "via": null, "vaulted": true, "rarity": "Rare", "pvp": false,
+                    "planet": null})
         );
         let via = v["sources"]
             .as_array()
@@ -287,7 +294,8 @@ mod tests {
         assert_eq!(
             via,
             &json!({"kind": "mission", "name": "Earth / Mantle", "rotation": "C", "chance": 12.5,
-                    "quantity": 1, "via": "Axi S1", "vaulted": null, "rarity": null, "pvp": false})
+                    "quantity": 1, "via": "Axi S1", "vaulted": null, "rarity": null, "pvp": false,
+                    "planet": "Earth"})
         );
 
         let v = call(&pool, "/api/items/3").await.1;

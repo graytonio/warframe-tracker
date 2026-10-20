@@ -9,17 +9,20 @@ export type ProgressNode = { item: ItemSummary; needed: number; have: number; ob
 export type Source = { kind: "mission" | "enemy" | "container" | "planet" | "relic"; name: string;
   rotation: string | null; chance: number | null; quantity: number | null;
   via: string | null;
-  vaulted: boolean | null; rarity: string | null; pvp: boolean };
+  vaulted: boolean | null; rarity: string | null; pvp: boolean; planet: string | null };
 
 export type WishlistEntry = { item: ItemSummary; added_at: string; completed_at: string | null;
   progress_pct: number; tree: ProgressNode };
 
 export type InventoryRow = { item: ItemSummary; count: number; source: string; updated_at: string };
 
-export type Need = { item: ItemSummary; needed: number; have: number; for: { id: number; name: string }[]; sources: Source[] };
+export type Need = { item: ItemSummary; needed: number; have: number; for: { id: number; name: string }[]; sources: Source[];
+  location_hint: string | null };
 export type SourceGroup = { kind: string; name: string; rotation: string | null; best_chance: number | null;
   vaulted: boolean; pvp: boolean; covers: { item_id: number; name: string; chance: number | null; via: string | null }[] };
-export type Plan = { by_need: Need[]; by_source: SourceGroup[]; unsourced: Need[] };
+export type LocationCover = { item_id: number; name: string; via: string[] };
+export type LocationGroup = { place: string; known: boolean; covers: LocationCover[]; nodes: string[] };
+export type Plan = { by_need: Need[]; by_source: SourceGroup[]; by_location: LocationGroup[]; unsourced: Need[] };
 
 export type Meta = { last_import_at: string | null; item_count: number;
   sources: { title: string; rev_id: number; fetched_at: string }[] };
