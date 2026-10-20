@@ -375,10 +375,14 @@ pub fn flatten(v: &Value) -> BTreeMap<String, i64> {
 
 - [ ] **Step 4: Implement `main.rs`.**
   - **Args:** hand-parse `--url`, `--token`, `--file`, `--interval <secs>` and `--once`. Each falls back to its env var (`WFT_URL`, `WFT_TOKEN`, `WFT_FILE`, `WFT_INTERVAL`, default 60).
-  - **Default file:** `dirs`-free:
-    - Windows: `%APPDATA%\WFHelper\api-helper\inventory.json`
-    - otherwise: `$XDG_CONFIG_HOME` or `~/.config`, then `WFHelper/api-helper/inventory.json`
-    - Mark it `// ponytail: path unverified on a real install; --file overrides`.
+  - **Default file:** WFHelper's own location, verified from its source (no `dirs` crate). The base folder is the first of:
+    1. `$WFHELPER_USER_DATA`, if set. WFHelper honours this override, so the client does too.
+    2. Windows: `%APPDATA%\WFHelper`.
+    3. Otherwise: `$XDG_CONFIG_HOME/WFHelper`, falling back to `~/.config/WFHelper`.
+
+    The file is `api-helper/inventory.json` inside that folder.
+    - Source: WFHelper `config/runtime/appIdentity.ts`, which sets `userData` to `app.getPath("appData")` + `"WFHelper"`, and `services/apiHelperRunner.ts`, which writes `inventory.json` under `userData/api-helper`.
+    - Test it with a pure `fn default_file(os: &str, env: impl Fn(&str) -> Option<String>) -> Option<PathBuf>`, with one case per OS plus one for the override. If the file doesn't exist, the client logs that path, so it's obvious what to pass with `--file`.
   - **Loop:** follow the spec's Loop section: mtime gate, `sync_id` gate, then POST with `reqwest::blocking::Client` and a 30 s timeout.
   - **401:** print `"token rejected (401); create a new one with \`warframe-tracker token create\`"` and exit 2.
   - **Other errors:** `eprintln!` them and continue.

@@ -88,9 +88,16 @@ keeps cross-compiling to Windows easy. It must not pull in sqlx or mlua.
 |---|---|---|
 | `--url` | `WFT_URL` | required, e.g. `https://warframe.graytonward.com` |
 | `--token` | `WFT_TOKEN` | required; the env var is preferred so it stays out of shell history |
-| `--file` | `WFT_FILE` | WFHelper's path for the OS (see Open questions) |
+| `--file` | `WFT_FILE` | WFHelper's own location (below) |
 | `--interval` | `WFT_INTERVAL` | `60s` |
 | `--once` | — | run one sync and exit |
+
+**Default file**, verified from WFHelper's source
+(`config/runtime/appIdentity.ts`, `services/apiHelperRunner.ts`):
+`<userData>/api-helper/inventory.json`, where `<userData>` is:
+- `$WFHELPER_USER_DATA` when set (WFHelper's own override);
+- on Windows, `%APPDATA%\WFHelper` (e.g. `C:\Users\<you>\AppData\Roaming\WFHelper`);
+- on Linux, `$XDG_CONFIG_HOME/WFHelper`, falling back to `~/.config/WFHelper`.
 
 **Loop:**
 1. Stat `--file`. Skip the tick if the mtime is unchanged since the last
@@ -272,11 +279,7 @@ as they are today.
 
 ## Open questions (resolve before or during planning)
 
-1. **Exact WFHelper output path.** The research shows it sits under
-   Electron's `userData/api-helper/inventory.json`. The folder name
-   (`WFHelper`, `wfhelper`, …) under `%APPDATA%` and `~/.config` needs
-   confirming on a real install. Until then, `--file` stays required, with
-   a best-guess default.
+1. ~~Exact WFHelper output path.~~ Resolved: see Default file.
 2. **A real inventory file** for the fixture and to measure the unmatched
    rate. Strip account identifiers before committing it.
 3. **Windows or Linux first** for the gaming PC. Both are planned; this
