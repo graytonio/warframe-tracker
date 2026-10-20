@@ -1,4 +1,5 @@
 pub mod api;
+pub mod auth;
 pub mod config;
 pub mod db;
 pub mod import;
@@ -35,6 +36,7 @@ pub fn app(state: AppState, web_dir: &str) -> Router {
     let spa = ServeDir::new(web_dir).fallback(ServeFile::new(format!("{web_dir}/index.html")));
     Router::new()
         .nest("/api", api::router())
+        .nest("/auth", auth::router())
         .fallback_service(spa)
         .with_state(state)
 }

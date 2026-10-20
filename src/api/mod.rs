@@ -108,6 +108,7 @@ pub enum ApiError {
     NotFound,
     Unauthorized(String),
     Forbidden(String),
+    BadGateway(String),
     BadRequest(String),
     Internal(String),
 }
@@ -132,6 +133,7 @@ impl IntoResponse for ApiError {
             ApiError::NotFound => (StatusCode::NOT_FOUND, "not found".to_string()),
             ApiError::Unauthorized(m) => (StatusCode::UNAUTHORIZED, m),
             ApiError::Forbidden(m) => (StatusCode::FORBIDDEN, m),
+            ApiError::BadGateway(m) => (StatusCode::BAD_GATEWAY, m),
             ApiError::BadRequest(m) => (StatusCode::BAD_REQUEST, m),
             ApiError::Internal(m) => {
                 eprintln!("internal error: {m}");
@@ -192,7 +194,15 @@ pub mod test_support {
         pool: &sqlx::PgPool,
         req: Request<Body>,
     ) -> (StatusCode, HeaderMap, serde_json::Value) {
-        let res = app(AppState::new(pool.clone(), Config::for_tests()), "web/dist")
+        send_with(pool, Config::for_tests(), req).await
+    }
+
+    pub async fn send_with(
+        pool: &sqlx::PgPool,
+        config: Config,
+        req: Request<Body>,
+    ) -> (StatusCode, HeaderMap, serde_json::Value) {
+        let res = app(AppState::new(pool.clone(), config), "web/dist")
             .oneshot(req)
             .await
             .unwrap();
