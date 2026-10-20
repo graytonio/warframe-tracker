@@ -131,34 +131,35 @@ async fn sync_inventory(
     .bind(&ids)
     .execute(&mut *tx)
     .await?;
-    // An arcane only counts once a copy is at max rank (wiki `MaxRank`, 5 if unknown).
-    // Ticking is one-way: a missing rank never un-ticks a manual or earlier tick.
+    // Arcanes carry their highest owned rank; an arcane with no ranked copy is rank 0.
     let exact_ids: Vec<i64> = exact.values().copied().collect();
-    let arcane_max: HashMap<i64, i64> = sqlx::query_as(
-        "SELECT id, CASE WHEN data->>'MaxRank' ~ '^[0-9]+$' THEN (data->>'MaxRank')::bigint ELSE 5 END
-         FROM items WHERE category = 'arcane' AND id = ANY($1)",
-    )
-    .bind(&exact_ids)
-    .fetch_all(&mut *tx)
-    .await?
-    .into_iter()
-    .collect();
-    let maxed: Vec<i64> = exact
+    let arcanes: Vec<i64> =
+        sqlx::query_scalar("SELECT id FROM items WHERE category = 'arcane' AND id = ANY($1)")
+            .bind(&exact_ids)
+            .fetch_all(&mut *tx)
+            .await?;
+    let (arcane_ids, arcane_ranks): (Vec<i64>, Vec<i32>) = exact
         .iter()
-        .filter(|(path, id)| {
-            arcane_max
-                .get(*id)
-                .is_some_and(|max| b.ranks.get(*path).is_some_and(|r| r >= max))
+        .filter(|(_, id)| arcanes.contains(id))
+        .map(|(path, id)| {
+            let rank = b
+                .ranks
+                .get(path)
+                .copied()
+                .unwrap_or(0)
+                .clamp(0, i32::MAX as i64);
+            (*id, rank as i32)
         })
-        .map(|(_, id)| *id)
-        .collect();
+        .unzip();
     sqlx::query(
-        "INSERT INTO component_progress (user_id, item_id, obtained)
-         SELECT $1, i, true FROM UNNEST($2::bigint[]) AS t(i)
-         ON CONFLICT (user_id, item_id) DO UPDATE SET obtained = true",
+        "UPDATE inventory SET rank = t.r
+         FROM UNNEST($2::bigint[], $3::int[]) AS t(i, r)
+         WHERE inventory.user_id = $1 AND inventory.item_id = t.i
+           AND inventory.rank IS DISTINCT FROM t.r",
     )
     .bind(user)
-    .bind(&maxed)
+    .bind(&arcane_ids)
+    .bind(&arcane_ranks)
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;
@@ -290,14 +291,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn max_rank_arcane_is_ticked_and_stays_ticked() {
+    async fn arcane_rank_is_synced_and_defaults_to_zero() {
         let pool = test_pool().await;
         let t = seed(&pool).await;
         sqlx::raw_sql(
             r#"INSERT INTO items (id, wiki_name, category, data) VALUES
-                 (20,'Arcane Energize','arcane','{"InternalName":"/A/Energize","MaxRank":5}'),
-                 (21,'Pax Soar','arcane','{"InternalName":"/A/PaxSoar","MaxRank":3}'),
-                 (22,'Arcane Grace','arcane','{"InternalName":"/A/Grace","MaxRank":5}'),
+                 (20,'Arcane Energize','arcane','{"InternalName":"/A/Energize"}'),
+                 (21,'Pax Soar','arcane','{"InternalName":"/A/PaxSoar"}'),
                  (23,'Serration','mod','{"InternalName":"/M/Serration"}')"#,
         )
         .execute(&pool)
@@ -310,38 +310,31 @@ mod tests {
                 "/api/sync/inventory",
                 Some(&t),
                 Some(json!({
-                    "items": {"/A/Energize": 1, "/A/PaxSoar": 1, "/A/Grace": 1, "/M/Serration": 1},
+                    "items": {"/A/Energize": 1, "/A/PaxSoar": 2, "/M/Serration": 1},
                     "ranks": ranks
                 })),
             )
         };
-        let ticked = || async {
-            let mut v: Vec<i64> = sqlx::query_scalar(
-                "SELECT item_id FROM component_progress WHERE user_id = 1 AND obtained ORDER BY 1",
+        let ranks = || async {
+            sqlx::query_as::<_, (i64, Option<i32>)>(
+                "SELECT item_id, rank FROM inventory WHERE user_id = 1 AND item_id >= 20 ORDER BY 1",
             )
             .fetch_all(&pool)
             .await
-            .unwrap();
-            v.sort();
-            v
+            .unwrap()
         };
-        let r = post(json!({"/A/Energize": 4, "/A/PaxSoar": 3, "/M/Serration": 10})).await;
+        let r = post(json!({"/A/Energize": 4, "/M/Serration": 10})).await;
         assert_eq!(r.0, StatusCode::OK);
-        // Pax Soar maxes at 3; Energize is short; mods are never ticked.
-        assert_eq!(ticked().await, vec![21]);
-        post(json!({"/A/Energize": 5})).await;
-        assert_eq!(ticked().await, vec![20, 21]);
-        // Older clients send no ranks; nothing un-ticks.
-        let (s, _) = call(
-            &pool,
-            "POST",
-            "/api/sync/inventory",
-            Some(&t),
-            Some(json!({"items": {"/A/Grace": 1}})),
-        )
-        .await;
-        assert_eq!(s, StatusCode::OK);
-        assert_eq!(ticked().await, vec![20, 21]);
+        // Mods never get a rank; an arcane with no ranked copy is rank 0.
+        assert_eq!(
+            ranks().await,
+            vec![(20, Some(4)), (21, Some(0)), (23, None)]
+        );
+        post(json!({"/A/Energize": 5, "/A/PaxSoar": 3})).await;
+        assert_eq!(
+            ranks().await,
+            vec![(20, Some(5)), (21, Some(3)), (23, None)]
+        );
     }
 
     #[test]

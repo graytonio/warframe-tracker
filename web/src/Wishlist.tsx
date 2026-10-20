@@ -102,14 +102,21 @@ export default function Wishlist() {
                         {' / '}1
                       </span>
                     ) : (
-                      // Synced from the game when a copy is at max rank; tick it by hand otherwise.
-                      <label className="nowrap">
+                      // Highest rank owned: synced from the game, or set by hand.
+                      <span className="nowrap">
+                        Rank{' '}
                         <input
-                          type="checkbox" checked={w.tree.obtained}
-                          onChange={e => act(send('PUT', `/progress/${w.item.id}`, { obtained: e.target.checked }))}
+                          key={w.tree.rank ?? 0}
+                          type="number" min={0} max={w.tree.max_rank ?? undefined} step={1} inputMode="numeric" className="count"
+                          aria-label={`${w.item.name} rank`} defaultValue={w.tree.rank ?? 0}
+                          onBlur={e => {
+                            const n = Number(e.target.value)
+                            if (!Number.isInteger(n) || n < 0) { e.target.value = String(w.tree.rank ?? 0); return }
+                            if (n !== (w.tree.rank ?? 0)) act(send('PUT', `/rank/${w.item.id}`, { rank: n }))
+                          }}
                         />
-                        {' '}Fully upgraded
-                      </label>
+                        {' / '}{w.tree.max_rank}
+                      </span>
                     )}
                   </div>
                   {!w.tree.covered && <Sources itemId={w.item.id} />}

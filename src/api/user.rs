@@ -17,6 +17,7 @@ pub fn routes() -> Router<AppState> {
         .route("/wishlist", get(wishlist).post(wishlist_add))
         .route("/wishlist/{item_id}", delete(wishlist_delete))
         .route("/progress/{item_id}", put(progress_put))
+        .route("/rank/{item_id}", put(rank_put))
         .route("/inventory", get(inventory).put(inventory_put))
         .route("/inventory/{item_id}", patch(inventory_patch))
 }
@@ -135,6 +136,36 @@ async fn progress_put(
     .bind(user)
     .bind(item_id)
     .bind(b.obtained)
+    .execute(&st.pool)
+    .await?;
+    found(r.rows_affected())
+}
+
+#[derive(Deserialize)]
+struct RankPut {
+    rank: i32,
+}
+
+/// Sets the highest owned rank of an arcane by hand; owning a ranked copy implies
+/// owning at least one, so a missing inventory row is created with count 1.
+async fn rank_put(
+    State(st): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(item_id): Path<i64>,
+    Json(b): Json<RankPut>,
+) -> ApiResult<StatusCode> {
+    if b.rank < 0 {
+        return Err(ApiError::BadRequest("rank must be >= 0".into()));
+    }
+    let r = sqlx::query(
+        "INSERT INTO inventory (user_id, item_id, count, rank, source, updated_at)
+         SELECT $1, id, 1, $3, 'manual', now() FROM items
+         WHERE id = $2 AND category = 'arcane' AND removed_at IS NULL
+         ON CONFLICT (user_id, item_id) DO UPDATE SET rank = EXCLUDED.rank, updated_at = now()",
+    )
+    .bind(user)
+    .bind(item_id)
+    .bind(b.rank)
     .execute(&st.pool)
     .await?;
     found(r.rows_affected())
@@ -362,6 +393,33 @@ mod tests {
             Some(json!({"count": 1})),
         )
         .await;
+        assert_eq!(call(&pool, "GET", "/api/wishlist", None).await.1, json!([]));
+    }
+
+    #[tokio::test]
+    async fn arcane_wishlist_follows_rank_and_removes_at_max() {
+        let pool = test_pool().await;
+        sqlx::raw_sql(
+            r#"INSERT INTO items (id, wiki_name, category, data) VALUES
+                 (30,'Arcane Energize','arcane','{"MaxRank":5}'),
+                 (31,'Serration','mod','{}')"#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        call(&pool, "POST", "/api/wishlist", Some(json!({"item_id": 30}))).await;
+        let v = call(&pool, "GET", "/api/wishlist", None).await.1;
+        assert_eq!(v[0]["tree"]["rank"], 0);
+        assert_eq!(v[0]["tree"]["max_rank"], 5);
+        let put = |rank: i64| call(&pool, "PUT", "/api/rank/30", Some(json!({ "rank": rank })));
+        assert_eq!(put(3).await.0, StatusCode::NO_CONTENT);
+        let v = call(&pool, "GET", "/api/wishlist", None).await.1;
+        assert_eq!(v[0]["tree"]["rank"], 3);
+        assert_eq!(put(-1).await.0, StatusCode::BAD_REQUEST);
+        // Ranks only apply to arcanes.
+        let (s, _) = call(&pool, "PUT", "/api/rank/31", Some(json!({"rank": 1}))).await;
+        assert_eq!(s, StatusCode::NOT_FOUND);
+        put(5).await;
         assert_eq!(call(&pool, "GET", "/api/wishlist", None).await.1, json!([]));
     }
 

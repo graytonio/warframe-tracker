@@ -413,20 +413,26 @@ fn collect(trees: &[ProgressNode], sourced: &HashSet<i64>) -> HashMap<i64, Need>
         }
         let roots = for_.get(&id).cloned().unwrap_or_default();
         let kids = &edges[&id];
-        if (kids.is_empty() || sourced.contains(&id)) && node.have < d {
+        // An arcane below max rank is still missing, however many copies are owned.
+        let have = if node.max_rank.is_some() && !node.covered {
+            0
+        } else {
+            node.have
+        };
+        if (kids.is_empty() || sourced.contains(&id)) && have < d {
             needs.insert(
                 id,
                 Need {
                     item: node.item.clone(),
                     needed: d,
-                    have: node.have,
+                    have,
                     for_: roots.clone(),
                     sources: vec![],
                     location_hint: None,
                 },
             );
         }
-        let short = (d - node.have).max(0);
+        let short = (d - have).max(0);
         if short == 0 {
             continue;
         }
