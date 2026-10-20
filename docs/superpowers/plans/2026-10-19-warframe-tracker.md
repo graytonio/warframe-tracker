@@ -86,7 +86,8 @@ type ProgressNode = { item: ItemSummary; needed: number; have: number; obtained:
 type Source = { kind: "mission" | "enemy" | "container" | "planet" | "relic"; name: string;
   rotation: string | null; chance: number | null; quantity: number | null;
   via: string | null;          // relic name when this mission drops a relic that drops the need
-  vaulted: boolean | null; rarity: string | null };  // set for kind=relic
+  vaulted: boolean | null; rarity: string | null;    // set for kind=relic
+  pvp: boolean };              // Conclave (PvP) reward table
 
 GET  /api/items?q=&category=&limit=  -> ItemSummary[]              (limit default 25, max 100)
 GET  /api/items/:id                  -> { item: ItemSummary; tree: ProgressNode; sources: Source[] }
@@ -99,10 +100,11 @@ PUT  /api/progress/:item_id {obtained: boolean}   -> 204
 GET  /api/inventory                  -> { item: ItemSummary; count: number; source: string; updated_at: string }[]
 PUT  /api/inventory [{item_id, count}] -> 204  (source='plugin' if header X-Inventory-Source: plugin else 'manual')
 PATCH /api/inventory/:item_id {count} -> 204
-GET  /api/plan -> { by_need: Need[]; by_source: SourceGroup[]; unsourced: Need[] }
+GET  /api/plan?include_pvp=false -> { by_need: Need[]; by_source: SourceGroup[]; unsourced: Need[] }
+  (PvP sources are dropped unless include_pvp=true; a need left with no sources goes to unsourced)
   Need        = { item: ItemSummary; needed: number; have: number; for: {id: number; name: string}[]; sources: Source[] }
   SourceGroup = { kind: string; name: string; rotation: string | null; best_chance: number | null;
-                  vaulted: boolean; covers: { item_id: number; name: string; chance: number | null; via: string | null }[] }
+                  vaulted: boolean; pvp: boolean; covers: { item_id: number; name: string; chance: number | null; via: string | null }[] }
 GET  /api/meta -> { last_import_at: string | null; item_count: number;
                     sources: { title: string; rev_id: number; fetched_at: string }[] }
 ```

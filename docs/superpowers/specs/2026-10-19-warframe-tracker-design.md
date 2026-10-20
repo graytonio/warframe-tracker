@@ -163,7 +163,8 @@ drop_sources(
   rotation text null,             -- A | B | C
   item_id FK items,
   chance numeric null,            -- percent, null for planet region resources
-  quantity int null
+  quantity int null,
+  is_pvp bool                     -- Conclave reward table
 )
 ```
 
@@ -252,6 +253,13 @@ Unknown `item_id` on writes is a 404, not a silent insert.
 
 Response has two views of the same data: `by_need` and `by_source`. The
 frontend shows `by_source` as the default "what to run" list.
+
+**PvP option.** `GET /api/plan?include_pvp=true` keeps Conclave reward
+tables as sources; by default they're excluded, because their small
+chances on many common resources would otherwise top the ranking. The
+importer marks them with `drop_sources.is_pvp`: a mission drop table whose
+alias starts with `Conclave` or `PVP`. The Plan page has a checkbox for this
+option, remembered per browser.
 
 v1 ranking is deliberately simple (coverage count, then chance). Expected
 runs, mission duration and Steel Path modifiers are out of scope.
