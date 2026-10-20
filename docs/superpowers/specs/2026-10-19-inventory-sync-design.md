@@ -12,8 +12,9 @@ reads the `inventory.json` that [WFHelper](https://github.com/WFHelper/WFHelper)
 pushes it to the tracker. It never touches the game process or DE's servers.
 
 Success looks like this:
-- A player running WFHelper sees their resource counts and built parts
-  reflected in the tracker within about a minute of WFHelper refreshing.
+- A player running WFHelper sees their resource counts, built parts and
+  owned part blueprints reflected in the tracker within about a minute of
+  WFHelper refreshing.
 - The farm plan shrinks to match: owned resources are subtracted, built
   components drop their subtrees, and owned frames and weapons drop off
   the plan.
@@ -44,15 +45,16 @@ Success looks like this:
 
 **In:**
 - A `wft-sync` client binary.
+- **Owned part blueprints** ("blueprint owned"), modelled as blueprint
+  items (see Server changes).
 - A token-authenticated sync endpoint on the tracker that maps game paths
   to items.
 - Token management.
-- Mapping of resources, mods, arcanes, frames, weapons, built components
-  and main blueprints.
+- Mapping of resources, mods, arcanes, frames, weapons, built components,
+  main blueprints and part blueprints.
 
 **Out (deferred, listed under Future work):**
 - Reading game memory directly.
-- **Owned part blueprints** (e.g. an unbuilt Chassis Blueprint).
 - Relics.
 - Auto-completing wishlist items.
 - Auth for the web UI.
@@ -122,6 +124,43 @@ Cargo needs every workspace member's manifest to resolve the workspace.
 
 ## Server changes
 
+### Blueprint owned: part blueprint items (importer)
+
+Owning a Chassis *blueprint* but not the built Chassis should remove the
+relic or drop need while keeping the crafting resources. This is modelled
+the way the game works: the blueprint is its own item, and an ingredient
+of the part it builds.
+
+- **Every blueprint result gets a blueprint item.** Today only non-component
+  results do ("Saryn Prime" ← "Saryn Prime Blueprint"). The rule now
+  covers components too, so "Saryn Prime Chassis" ← "Saryn Prime Chassis
+  Blueprint" (count 1), alongside its resources. Prime weapon parts
+  (Barrel, Receiver, …) have no blueprint record because they drop already
+  built, so they get no blueprint item.
+- **Relic drops point at the blueprint.** A relic `Part` ending in
+  `" Blueprint"` (e.g. `"Chassis Blueprint"`) now links to
+  `"{Item} Chassis Blueprint"`, no longer the built `"{Item} Chassis"`.
+  `Part: "Blueprint"` and parts without the suffix (`"Barrel"`) are
+  unchanged.
+- **Drop tables match exactly.** `"Ash Chassis Blueprint"` resolves to the
+  blueprint item. The fallback that stripped `" Blueprint"` and credited
+  the built part is removed.
+- `IMPORT_VERSION` is bumped, so the next import re-maps the data.
+
+No planner or UI change follows from this:
+- **Built part owned:** `have >= needed`, so its whole subtree (blueprint
+  and resources) is hidden.
+- **Only the blueprint owned:** the blueprint leaf is covered, so the
+  relic or drop need disappears, but the part's resources stay in the plan.
+- **Neither owned:** the blueprint is a need, with the relic or mission
+  sources that used to attach to the part.
+- **UI:** the blueprint shows up in the build tree as a component with its
+  own checkbox, so a player without the sync can tick "blueprint owned" by
+  hand.
+
+Existing `component_progress` rows on parts keep their meaning ("built
+part obtained").
+
 ### Tokens
 
 ```
@@ -174,11 +213,10 @@ are considered:
      the CamelCase into words. `SarynPrimeChassisComponent` becomes
      "Saryn Prime Chassis", and `BratonPrimeBarrel` becomes "Braton Prime
      Barrel".
-   - Match that against component `wiki_name`s, ignoring case.
-   - A path ending in `Blueprint` maps only when the resulting name is a
-     main-blueprint component: `SarynPrimeBlueprint` becomes "Saryn Prime
-     Blueprint". Part blueprints such as `SarynPrimeChassisBlueprint` are
-     deliberately left unmatched (see Future work).
+   - Blueprints need no special case. `SarynPrimeChassisBlueprint` becomes
+     "Saryn Prime Chassis Blueprint", and `SarynPrimeBlueprint` becomes
+     "Saryn Prime Blueprint". Both are component items.
+   - Match the name against component `wiki_name`s, ignoring case.
 3. Anything else goes to `unmatched`.
 
 **Writes**, in one transaction, as a snapshot of the user's game
@@ -219,7 +257,13 @@ as they are today.
     401 on sync.
   - Mapping: an exact path match; `SarynPrimeChassisComponent` mapping to
     the component; `SarynPrimeBlueprint` mapping to the main blueprint;
-    `SarynPrimeChassisBlueprint` and unknown paths landing in `unmatched`.
+    `SarynPrimeChassisBlueprint` mapping to the part blueprint; unknown paths
+    landing in `unmatched`.
+  - Importer: "Saryn Prime Chassis" has a "Saryn Prime Chassis Blueprint"
+    ingredient. Relics drop the blueprint, not the built part. "Braton
+    Prime Barrel" gets no blueprint item.
+  - Planner: with only the Chassis Blueprint owned, the relic need is gone
+    and the Chassis resources remain.
   - Snapshot: plugin rows absent from the snapshot are deleted, manual
     rows absent from it are kept, and a manual row present in it becomes
     plugin. Negative counts get 400.
@@ -240,11 +284,6 @@ as they are today.
 
 ## Future work
 
-- **Part blueprints.** Owning a Chassis *blueprint* but not the built
-  part should remove the relic or drop need while keeping the crafting
-  resources. That needs a separate "blueprint owned" notion per component,
-  for example a `component_progress.blueprint_owned` flag that the planner
-  reads, instead of overloading `have`.
 - **Relics** (`/Lotus/Types/Game/Projections/...`) need a path → relic
   mapping that the wiki data doesn't carry.
 - **Reading memory directly** (porting WFHelper's MIT
