@@ -131,7 +131,7 @@ pub async fn build_plan(pool: &PgPool, user_id: i64, opts: PlanOptions) -> sqlx:
 
     let mut trees = Vec::new();
     for root in roots {
-        if let Some(t) = load_tree(pool, user_id, root).await? {
+        if let Some(t) = load_tree(pool, Some(user_id), root).await? {
             trees.push(t);
         }
     }
@@ -992,22 +992,11 @@ mod tests {
 
     #[tokio::test]
     async fn plan_route_on_empty_db_is_200_and_empty() {
-        use crate::{AppState, app};
-        use axum::{body::Body, http::Request};
-        use http_body_util::BodyExt;
-        use tower::ServiceExt;
+        use crate::api::test_support::{Auth, call, login};
         let pool = test_pool().await;
-        let req = Request::get("/api/plan").body(Body::empty()).unwrap();
-        let res = app(
-            AppState::new(pool, crate::config::Config::for_tests()),
-            "web/dist",
-        )
-        .oneshot(req)
-        .await
-        .unwrap();
-        assert_eq!(res.status(), 200);
-        let bytes = res.into_body().collect().await.unwrap().to_bytes();
-        let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let c = login(&pool, 1).await;
+        let (s, v) = call(&pool, Auth::Session(&c), "GET", "/api/plan", None).await;
+        assert_eq!(s, 200);
         assert_eq!(
             v,
             serde_json::json!({"by_need": [], "by_source": [], "by_location": [], "unsourced": []})

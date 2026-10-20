@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::api::{ApiError, ApiResult, TokenUser};
+use crate::api::{ApiError, ApiResult, CurrentUser};
 use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, State},
@@ -48,7 +48,7 @@ fn component_name(path: &str) -> String {
 /// rows, `plugin` rows it no longer reports are deleted, `manual` rows it doesn't report stay.
 async fn sync_inventory(
     State(st): State<AppState>,
-    TokenUser(user): TokenUser,
+    CurrentUser(user): CurrentUser,
     Json(b): Json<SyncBody>,
 ) -> ApiResult<Json<SyncResult>> {
     if b.items.len() > MAX_PATHS {
@@ -139,14 +139,10 @@ async fn sync_inventory(
 #[cfg(test)]
 mod tests {
     use super::component_name;
-    use crate::{AppState, app, db::test_pool};
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
-    use http_body_util::BodyExt;
+    use crate::api::test_support::{self, Auth, login};
+    use crate::db::test_pool;
+    use axum::http::StatusCode;
     use serde_json::{Value, json};
-    use tower::ServiceExt;
 
     const NEURODE: &str = "/Lotus/Types/Items/MiscItems/Neurode";
     const SARYN: &str = "/Lotus/Powersuits/Saryn/SarynPrime";
@@ -154,6 +150,7 @@ mod tests {
     const CHASSIS_BP: &str = "/Lotus/Types/Recipes/WarframeRecipes/SarynPrimeChassisBlueprint";
     const SARYN_BP: &str = "/Lotus/Types/Recipes/WarframeRecipes/SarynPrimeBlueprint";
 
+    /// Bearer `token` when given, else a user-1 session.
     async fn call(
         pool: &sqlx::PgPool,
         method: &str,
@@ -161,32 +158,9 @@ mod tests {
         token: Option<&str>,
         body: Option<Value>,
     ) -> (StatusCode, Value) {
-        let mut req = Request::builder().method(method).uri(uri);
-        if let Some(t) = token {
-            req = req.header("authorization", format!("Bearer {t}"));
-        }
-        let body = match body {
-            Some(b) => {
-                req = req.header("content-type", "application/json");
-                Body::from(b.to_string())
-            }
-            None => Body::empty(),
-        };
-        let res = app(
-            AppState::new(pool.clone(), crate::config::Config::for_tests()),
-            "web/dist",
-        )
-        .oneshot(req.body(body).unwrap())
-        .await
-        .unwrap();
-        let status = res.status();
-        let bytes = res.into_body().collect().await.unwrap().to_bytes();
-        let v = if bytes.is_empty() {
-            Value::Null
-        } else {
-            serde_json::from_slice(&bytes).unwrap()
-        };
-        (status, v)
+        let c = login(pool, 1).await;
+        let auth = token.map_or(Auth::Session(&c), Auth::Bearer);
+        test_support::call(pool, auth, method, uri, body).await
     }
 
     /// Seeds items and returns a token for user 1.
@@ -337,6 +311,16 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn session_can_sync() {
+        let pool = test_pool().await;
+        seed(&pool).await;
+        let body = json!({ "items": { NEURODE: 3 } });
+        let (s, _) = call(&pool, "POST", "/api/sync/inventory", None, Some(body)).await;
+        assert_eq!(s, StatusCode::OK);
+        assert_eq!(inv(&pool).await, [("Neurodes".into(), 3, "plugin".into())]);
+    }
+
+    #[tokio::test]
     async fn manual_row_in_snapshot_becomes_plugin() {
         let pool = test_pool().await;
         let t = seed(&pool).await;
@@ -351,7 +335,11 @@ mod tests {
         let pool = test_pool().await;
         let t = seed(&pool).await;
         let body = json!({ "items": { NEURODE: 1 } });
-        let (s, v) = call(&pool, "POST", "/api/sync/inventory", None, Some(body)).await;
+        let uri = "/api/sync/inventory";
+        let (s, v) = test_support::call(&pool, Auth::None, "POST", uri, Some(body.clone())).await;
+        assert_eq!(s, StatusCode::UNAUTHORIZED);
+        assert_eq!(v["error"], "sign in required");
+        let (s, v) = call(&pool, "POST", uri, Some("nope"), Some(body)).await;
         assert_eq!(s, StatusCode::UNAUTHORIZED);
         assert_eq!(v["error"], "invalid token");
         let (s, v) = call(
