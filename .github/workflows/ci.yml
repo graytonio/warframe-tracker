@@ -42,16 +42,16 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
-  # Builds both release platforms so main keeps a warm layer cache that tag releases can read
+  # Builds the release image so main keeps a warm layer cache that tag releases can read
   # (a tag run can only restore caches saved by that tag or by main).
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
       - uses: docker/build-push-action@v7
         with:
-          platforms: linux/amd64,linux/arm64
+          # amd64 only: every homelab node is amd64, and arm64 under QEMU was most of the build time.
+          platforms: linux/amd64
           push: false
           cache-from: type=gha,scope=docker
           cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,scope=docker,mode=max' || '' }}
