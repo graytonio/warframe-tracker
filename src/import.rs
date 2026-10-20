@@ -354,27 +354,45 @@ pub async fn map_modules(
     // 4. Drop sources.
     let mut rows = DropRows::default();
     let missions_mod = module("Module:Missions/data")?;
-    let mut nodes: HashMap<&str, Vec<String>> = HashMap::new();
+    // alias → (source name, planet) for every node using it as main, cache or bonus table.
+    let mut nodes: HashMap<&str, Vec<(String, String)>> = HashMap::new();
     for m in missions_mod["MissionDetails"]
         .as_array()
         .into_iter()
         .flatten()
     {
-        if let (Some(alias), Some(name), Some(planet), Some(ty)) = (
-            m["DropTableAlias"].as_str(),
-            m["Name"].as_str(),
-            m["Planet"].as_str(),
-            m["Type"].as_str(),
-        ) {
-            nodes
-                .entry(alias)
-                .or_default()
-                .push(format!("{planet} / {name} ({ty})"));
+        let (Some(name), Some(planet), Some(ty)) =
+            (m["Name"].as_str(), m["Planet"].as_str(), m["Type"].as_str())
+        else {
+            continue;
+        };
+        for (key, suffix) in [
+            ("DropTableAlias", ""),
+            ("CacheDropTableAlias", " — caches"),
+            ("ExtraDropTableAlias", " — completion bonus"),
+        ] {
+            if let Some(alias) = m[key].as_str() {
+                nodes.entry(alias).or_default().push((
+                    format!("{planet} / {name} ({ty}){suffix}"),
+                    planet.to_string(),
+                ));
+            }
         }
     }
     let dt = module("Module:DropTables/data")?;
     for (alias, rec) in obj(&dt["Missions"], "Missions")? {
-        let fallback = vec![rec["Name"].as_str().unwrap_or(alias).to_string()];
+        if rec["_IgnoreEntry"].as_bool() == Some(true) {
+            continue;
+        }
+        let fallback = {
+            let name = rec["Name"].as_str().unwrap_or(alias);
+            let place = link_place(rec["Link"].as_str());
+            let label = match place {
+                Some(p) if !name.starts_with(p) => format!("{p}: {name}"),
+                _ => name.to_string(),
+            };
+            vec![(label, place.and_then(normalise_place).unwrap_or_default())]
+        };
         let names = nodes.get(alias.as_str()).unwrap_or(&fallback);
         // Conclave drop tables: `ConclaveLunaro`, `PVPWeeklyChallengeReward`, ...
         let pvp = alias.starts_with("Conclave") || alias.starts_with("PVP");
@@ -383,11 +401,11 @@ pub async fn map_modules(
                 let Some((name, ty, chance, qty)) = entry(e) else {
                     continue;
                 };
-                let Some(id) = drop_item(&ids, name, ty, &names[0], &mut s) else {
+                let Some(id) = drop_item(&ids, name, ty, &names[0].0, &mut s) else {
                     continue;
                 };
-                for n in names {
-                    rows.push("mission", n, Some(rot), id, chance, qty, pvp);
+                for (n, planet) in names {
+                    rows.push("mission", n, Some(rot), id, chance, qty, pvp, planet);
                 }
             }
         }
@@ -397,6 +415,12 @@ pub async fn map_modules(
             if rec["_IgnoreEntry"].as_bool() == Some(true) {
                 continue;
             }
+            let planet = match kind {
+                "container" => link_place(rec["Link"].as_str())
+                    .and_then(normalise_place)
+                    .unwrap_or_default(),
+                _ => String::new(),
+            };
             for list in DROP_LISTS {
                 let mult = rec[format!("{}Chance", list.trim_end_matches('s'))]
                     .as_f64()
@@ -409,7 +433,16 @@ pub async fn map_modules(
                     let Some(id) = drop_item(&ids, item, ty, name, &mut s) else {
                         continue;
                     };
-                    rows.push(kind, name, None, id, chance.map(|c| c * mult), qty, false);
+                    rows.push(
+                        kind,
+                        name,
+                        None,
+                        id,
+                        chance.map(|c| c * mult),
+                        qty,
+                        false,
+                        &planet,
+                    );
                 }
             }
         }
@@ -424,17 +457,17 @@ pub async fn map_modules(
             .filter_map(Value::as_str)
         {
             match resolve(&ids, n, &["resource"]) {
-                Some((_, id)) => rows.push("planet", planet, None, id, None, None, false),
+                Some((_, id)) => rows.push("planet", planet, None, id, None, None, false, planet),
                 None => s.unresolved.push(format!("{planet}: {n}")),
             }
         }
     }
     s.drop_sources = rows.kind.len();
     sqlx::query(
-        "INSERT INTO drop_sources (source_kind, source_name, rotation, item_id, chance, quantity, is_pvp)
-         SELECT k, n, r, i, round(c::numeric, 4), q, p
-         FROM UNNEST($1::text[], $2::text[], $3::text[], $4::bigint[], $5::float8[], $6::int[], $7::bool[])
-           AS t(k, n, r, i, c, q, p)",
+        "INSERT INTO drop_sources (source_kind, source_name, rotation, item_id, chance, quantity, is_pvp, planet)
+         SELECT k, n, r, i, round(c::numeric, 4), q, p, NULLIF(pl, '')
+         FROM UNNEST($1::text[], $2::text[], $3::text[], $4::bigint[], $5::float8[], $6::int[], $7::bool[], $8::text[])
+           AS t(k, n, r, i, c, q, p, pl)",
     )
     .bind(rows.kind)
     .bind(rows.name)
@@ -443,6 +476,7 @@ pub async fn map_modules(
     .bind(rows.chance)
     .bind(rows.quantity)
     .bind(rows.pvp)
+    .bind(rows.planet)
     .execute(&mut *tx)
     .await?;
 
@@ -465,6 +499,8 @@ struct DropRows {
     chance: Vec<Option<f64>>,
     quantity: Vec<Option<i32>>,
     pvp: Vec<bool>,
+    /// "" for none; NULL at insert.
+    planet: Vec<String>,
 }
 
 impl DropRows {
@@ -479,6 +515,7 @@ impl DropRows {
         chance: Option<f64>,
         qty: Option<i32>,
         pvp: bool,
+        planet: &str,
     ) {
         self.kind.push(kind.into());
         self.name.push(name.into());
@@ -487,6 +524,23 @@ impl DropRows {
         self.chance.push(chance);
         self.quantity.push(qty);
         self.pvp.push(pvp);
+        self.planet.push(planet.into());
+    }
+}
+
+/// The place part of a drop table's `Link` ("Cambion Drift#Bounties" → "Cambion Drift");
+/// `None` for generic links.
+fn link_place(link: Option<&str>) -> Option<&str> {
+    let p = link?.split('#').next()?.trim();
+    (!p.is_empty() && !["Bounty", "Storage Container", "Mission"].contains(&p)).then_some(p)
+}
+
+/// Trimmed place name with wiki aliases folded; `None` when empty.
+fn normalise_place(p: &str) -> Option<String> {
+    match p.trim() {
+        "" => None,
+        "Zariman Ten Zero" => Some("Zariman".into()),
+        p => Some(p.into()),
     }
 }
 
@@ -630,6 +684,106 @@ mod tests {
             .fetch_one(pool)
             .await
             .unwrap_or_else(|_| panic!("missing {cat}/{name}"))
+    }
+
+    #[tokio::test]
+    async fn cache_and_extra_aliases_map_to_nodes() {
+        let pool = test_pool().await;
+        let mut m = fixtures();
+        // One node using all three aliases; one table per alias with a Rubedo entry.
+        m.get_mut("Module:Missions/data").unwrap()["MissionDetails"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "Name": "Plato", "Planet": "Lua", "Type": "Sabotage",
+                "DropTableAlias": "TestMain", "CacheDropTableAlias": "TestCache", "ExtraDropTableAlias": "TestExtra"
+            }));
+        let missions = m.get_mut("Module:DropTables/data").unwrap()["Missions"]
+            .as_object_mut()
+            .unwrap();
+        for alias in ["TestMain", "TestCache", "TestExtra"] {
+            missions.insert(
+                alias.into(),
+                json!({"Name": alias, "Rewards": {"A": [["Rubedo", "Resource", 10]]}}),
+            );
+        }
+        import_with(&pool, &m).await;
+        let rows: Vec<(String, Option<String>)> = sqlx::query_as(
+            "SELECT source_name, planet FROM drop_sources WHERE source_name LIKE 'Lua / Plato%' ORDER BY 1",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            rows,
+            vec![
+                ("Lua / Plato (Sabotage)".into(), Some("Lua".into())),
+                ("Lua / Plato (Sabotage) — caches".into(), Some("Lua".into())),
+                (
+                    "Lua / Plato (Sabotage) — completion bonus".into(),
+                    Some("Lua".into())
+                ),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn link_place_names() {
+        let pool = test_pool().await;
+        let mut m = fixtures();
+        let missions = m.get_mut("Module:DropTables/data").unwrap()["Missions"]
+            .as_object_mut()
+            .unwrap();
+        missions.insert(
+            "CetusBounty1".into(),
+            json!({"Name": "Cetus Bounty Lvl 5-15", "Link": "Plains of Eidolon#Bounties",
+            "Rewards": {"A": [["Rubedo", "Resource", 10]]}}),
+        );
+        missions.insert(
+            "DeimosBounty1".into(),
+            json!({"Name": "Cambion Drift Bounty Lvl 5-15", "Link": "Cambion Drift#Bounties",
+            "Rewards": {"A": [["Rubedo", "Resource", 10]]}}),
+        );
+        missions.insert(
+            "Ignored".into(),
+            json!({"Name": "Hallowed Flame", "_IgnoreEntry": true,
+            "Rewards": {"A": [["Rubedo", "Resource", 10]]}}),
+        );
+        import_with(&pool, &m).await;
+        let names: Vec<(String, Option<String>)> = sqlx::query_as(
+            "SELECT source_name, planet FROM drop_sources WHERE source_name LIKE '%Bounty%' OR source_name LIKE '%Hallowed%' ORDER BY 1",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            names,
+            vec![
+                (
+                    "Cambion Drift Bounty Lvl 5-15".into(),
+                    Some("Cambion Drift".into())
+                ),
+                (
+                    "Plains of Eidolon: Cetus Bounty Lvl 5-15".into(),
+                    Some("Plains of Eidolon".into())
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn place_helpers() {
+        assert_eq!(
+            super::link_place(Some("Cambion Drift#Bounties")),
+            Some("Cambion Drift")
+        );
+        assert_eq!(super::link_place(Some("Storage Container")), None);
+        assert_eq!(super::link_place(None), None);
+        assert_eq!(
+            super::normalise_place(" Zariman Ten Zero ").as_deref(),
+            Some("Zariman")
+        );
+        assert_eq!(super::normalise_place(""), None);
     }
 
     async fn ingredients(pool: &PgPool, result: i64) -> Vec<String> {
@@ -776,6 +930,27 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(earth, 1);
+        let unplaced: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM drop_sources WHERE source_kind='planet' AND planet IS DISTINCT FROM source_name",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(unplaced, 0);
+        let earth_planet: Option<String> = sqlx::query_scalar(
+            "SELECT DISTINCT planet FROM drop_sources WHERE source_kind='planet' AND source_name='Earth'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(earth_planet.as_deref(), Some("Earth"));
+        let hv: Vec<Option<String>> = sqlx::query_scalar(
+            "SELECT DISTINCT planet FROM drop_sources WHERE source_name='Höllvania / Victory Plaza (Assassination)'",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(hv, vec![Some("Höllvania".to_string())]);
         // Missions are named after the node that uses the drop table.
         let n: i64 = sqlx::query_scalar(
             "SELECT count(*) FROM drop_sources d JOIN items i ON i.id=d.item_id
