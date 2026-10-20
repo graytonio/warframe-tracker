@@ -190,10 +190,13 @@ mod tests {
 
     async fn call(pool: &sqlx::PgPool, uri: &str) -> (StatusCode, Value) {
         let req = Request::builder().uri(uri).body(Body::empty()).unwrap();
-        let res = app(AppState { pool: pool.clone() }, "web/dist")
-            .oneshot(req)
-            .await
-            .unwrap();
+        let res = app(
+            AppState::new(pool.clone(), crate::config::Config::for_tests()),
+            "web/dist",
+        )
+        .oneshot(req)
+        .await
+        .unwrap();
         let status = res.status();
         let bytes = res.into_body().collect().await.unwrap().to_bytes();
         (status, serde_json::from_slice(&bytes).unwrap())

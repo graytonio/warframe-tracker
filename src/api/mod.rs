@@ -142,10 +142,13 @@ mod tests {
                 .header("content-type", "application/json")
                 .body(B::from(body))
                 .unwrap();
-            let res = app(AppState { pool: pool.clone() }, "web/dist")
-                .oneshot(req)
-                .await
-                .unwrap();
+            let res = app(
+                AppState::new(pool.clone(), crate::config::Config::for_tests()),
+                "web/dist",
+            )
+            .oneshot(req)
+            .await
+            .unwrap();
             let status = res.status();
             assert!(status.is_client_error(), "{method} {uri}: {status}");
             let bytes = res.into_body().collect().await.unwrap().to_bytes();
@@ -168,10 +171,13 @@ mod tests {
             if let Some(a) = &auth {
                 req = req.header("authorization", a);
             }
-            let res = app(AppState { pool: pool.clone() }, "web/dist")
-                .oneshot(req.body(B::empty()).unwrap())
-                .await
-                .unwrap();
+            let res = app(
+                AppState::new(pool.clone(), crate::config::Config::for_tests()),
+                "web/dist",
+            )
+            .oneshot(req.body(B::empty()).unwrap())
+            .await
+            .unwrap();
             assert_eq!(res.status().as_u16(), want, "{auth:?}");
             let bytes = res.into_body().collect().await.unwrap().to_bytes();
             let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();

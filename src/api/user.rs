@@ -288,10 +288,13 @@ mod tests {
             }
             None => Body::empty(),
         };
-        let res = app(AppState { pool: pool.clone() }, "web/dist")
-            .oneshot(req.body(body).unwrap())
-            .await
-            .unwrap();
+        let res = app(
+            AppState::new(pool.clone(), crate::config::Config::for_tests()),
+            "web/dist",
+        )
+        .oneshot(req.body(body).unwrap())
+        .await
+        .unwrap();
         let status = res.status();
         let bytes = res.into_body().collect().await.unwrap().to_bytes();
         let v = if bytes.is_empty() {
@@ -406,10 +409,13 @@ mod tests {
             .header("x-inventory-source", "plugin")
             .body(Body::from(r#"[{"item_id":3,"count":500}]"#))
             .unwrap();
-        let res = app(AppState { pool: pool.clone() }, "web/dist")
-            .oneshot(req)
-            .await
-            .unwrap();
+        let res = app(
+            AppState::new(pool.clone(), crate::config::Config::for_tests()),
+            "web/dist",
+        )
+        .oneshot(req)
+        .await
+        .unwrap();
         assert_eq!(res.status(), StatusCode::NO_CONTENT);
         let (_, v) = call(&pool, "GET", "/api/inventory", None).await;
         assert_eq!(v[0]["item"]["name"], "Rubedo");

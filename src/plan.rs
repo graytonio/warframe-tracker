@@ -998,10 +998,13 @@ mod tests {
         use tower::ServiceExt;
         let pool = test_pool().await;
         let req = Request::get("/api/plan").body(Body::empty()).unwrap();
-        let res = app(AppState { pool }, "web/dist")
-            .oneshot(req)
-            .await
-            .unwrap();
+        let res = app(
+            AppState::new(pool, crate::config::Config::for_tests()),
+            "web/dist",
+        )
+        .oneshot(req)
+        .await
+        .unwrap();
         assert_eq!(res.status(), 200);
         let bytes = res.into_body().collect().await.unwrap().to_bytes();
         let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();

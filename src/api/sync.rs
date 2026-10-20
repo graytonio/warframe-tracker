@@ -172,10 +172,13 @@ mod tests {
             }
             None => Body::empty(),
         };
-        let res = app(AppState { pool: pool.clone() }, "web/dist")
-            .oneshot(req.body(body).unwrap())
-            .await
-            .unwrap();
+        let res = app(
+            AppState::new(pool.clone(), crate::config::Config::for_tests()),
+            "web/dist",
+        )
+        .oneshot(req.body(body).unwrap())
+        .await
+        .unwrap();
         let status = res.status();
         let bytes = res.into_body().collect().await.unwrap().to_bytes();
         let v = if bytes.is_empty() {
