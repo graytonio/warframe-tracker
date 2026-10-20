@@ -1,0 +1,30 @@
+{
+  "Mods": {
+    "Serration": {
+      "BaseDrain": 4,
+      "CodexSecret": false,
+      "Description": "+165% Damage",
+      "Icon": "Serration.png",
+      "Image": "SerrationMod.png",
+      "Incompatible": [
+        "Amalgam Serration",
+        "Higasa Serration",
+        "Flawed Serration",
+        "Spectral Serration"
+      ],
+      "InternalName": "/Lotus/Upgrades/Mods/Rifle/WeaponDamageAmountMod",
+      "Introduced": "0",
+      "Link": "Serration",
+      "MaxRank": 10,
+      "Name": "Serration",
+      "Polarity": "Madurai",
+      "Rarity": "Uncommon",
+      "Tradable": true,
+      "Transmutable": true,
+      "Type": "Rifle",
+      "UpgradeTypes": [
+        "WEAPON_DAMAGE_AMOUNT"
+      ]
+    }
+  }
+}

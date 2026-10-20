@@ -1,0 +1,6 @@
+target
+web/node_modules
+web/dist
+wiki-json
+.git
+.claude

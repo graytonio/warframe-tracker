@@ -1,0 +1,110 @@
+{
+  "Warframes": {
+    "Saryn": {
+      "Abilities": [
+        "Spores",
+        "Molt",
+        "Toxic Lash",
+        "Miasma"
+      ],
+      "Armor": 240,
+      "AugmentShop": [
+        "Red Veil",
+        "Steel Meridian"
+      ],
+      "AuraPolarity": "Vazarin",
+      "CodexSecret": false,
+      "Conclave": true,
+      "Description": "Toxicity is Saryn’s strength. Her serpentine powers deal heavy damage. For Saryn, venom is a virtue.",
+      "Energy": 175,
+      "FullImages": [
+        {
+          "Image": "Saryn.png",
+          "TabName": "Full Body"
+        }
+      ],
+      "Health": 365,
+      "Helmet": "SarynHelmet.png",
+      "Image": "Saryn_Thumb.png",
+      "InitialEnergy": 50,
+      "InternalName": "/Lotus/Powersuits/Saryn/Saryn",
+      "Introduced": "7",
+      "Link": "Saryn",
+      "MaxRank": 30,
+      "Name": "Saryn",
+      "Passive": "Status Effects inflicted upon enemies last 25% longer.",
+      "Playstyle": [
+        "Damage"
+      ],
+      "Polarities": [
+        "Naramon",
+        "Vazarin"
+      ],
+      "Portrait": "Saryn_Thumb.png",
+      "Progenitor": "Toxin",
+      "SellPrice": 10000,
+      "Sex": "Female",
+      "Shield": 270,
+      "Sprint": 0.95,
+      "SquadPortrait": "SarynLargePortrait.png",
+      "Subsumed": "Molt",
+      "Tactical": "Molt",
+      "Themes": "Disease, Poison, Serpentine",
+      "Type": "Warframe"
+    },
+    "Saryn Prime": {
+      "Abilities": [
+        "Spores",
+        "Molt",
+        "Toxic Lash",
+        "Miasma"
+      ],
+      "Armor": 315,
+      "AugmentShop": [
+        "Red Veil",
+        "Steel Meridian"
+      ],
+      "AuraPolarity": "Vazarin",
+      "CodexSecret": false,
+      "Conclave": true,
+      "Description": "A golden blossom conceals deadly nectar. Featuring altered mod polarities for greater customization.",
+      "Energy": 200,
+      "EnergyRank30": 300,
+      "FullImages": [
+        {
+          "Image": "SarynPrime.png",
+          "TabName": "Full Body"
+        }
+      ],
+      "Health": 365,
+      "Helmet": "SarynPrimeHelmet.png",
+      "Image": "SarynPrime_Thumb.png",
+      "InitialEnergy": 100,
+      "InternalName": "/Lotus/Powersuits/Saryn/SarynPrime",
+      "Introduced": "18.4.12",
+      "Link": "Saryn/Prime",
+      "MaxRank": 30,
+      "Name": "Saryn Prime",
+      "Passive": "Status Effects inflicted upon enemies last 25% longer.",
+      "Playstyle": [
+        "Damage"
+      ],
+      "Polarities": [
+        "Naramon",
+        "Vazarin",
+        "Madurai"
+      ],
+      "Portrait": "SarynPrime_Thumb.png",
+      "Progenitor": "Toxin",
+      "SellPrice": 25000,
+      "Sex": "Female",
+      "Shield": 270,
+      "Sprint": 1,
+      "SquadPortrait": "SarynPrimeLargePortrait.png",
+      "Tactical": "Molt",
+      "Themes": "Disease, Poison, Serpentine",
+      "Type": "Warframe",
+      "Vaulted": true
+    }
+  }
+}

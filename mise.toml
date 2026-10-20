@@ -1,0 +1,34 @@
+[tools]
+rust = { version = "1.94.0", components = "clippy,rustfmt" }
+node = "25"
+
+[env]
+DATABASE_URL = "postgres://postgres:postgres@localhost:5433/warframe"
+
+[tasks.db]
+description = "Start only postgres in docker"
+run = "docker compose up -d --wait db"
+
+[tasks.run]
+description = "Run the server natively (against the docker db)"
+depends = ["db"]
+run = "cargo run -- serve"
+
+[tasks.import]
+description = "Import game data from the wiki"
+depends = ["db"]
+run = "cargo run -- import"
+
+[tasks.lint]
+description = "Check formatting and clippy"
+run = ["cargo fmt --check", "cargo clippy --all-targets -- -D warnings"]
+
+[tasks.test]
+description = "Run tests against the docker db"
+depends = ["db"]
+run = "cargo test"
+
+[tasks.web]
+description = "Build the frontend into web/dist"
+dir = "web"
+run = "npm ci && npm run build"

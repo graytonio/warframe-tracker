@@ -1,0 +1,150 @@
+{
+  "Blueprints": {
+    "Braton Prime": {
+      "Credits": 15000,
+      "Name": "Braton Prime Blueprint",
+      "Parts": [
+        {
+          "Count": 1,
+          "Name": "Barrel",
+          "Type": "PrimePart"
+        },
+        {
+          "Count": 1,
+          "Name": "Receiver",
+          "Type": "PrimePart"
+        },
+        {
+          "Count": 1,
+          "Name": "Stock",
+          "Type": "PrimePart"
+        },
+        {
+          "Count": 10,
+          "Name": "Orokin Cell",
+          "Type": "Resource"
+        }
+      ],
+      "Result": "Braton Prime",
+      "Rush": 50,
+      "Time": 43200
+    }
+  },
+  "Suits": {
+    "Saryn Prime": {
+      "Credits": 25000,
+      "Name": "Saryn Prime Blueprint",
+      "Parts": [
+        {
+          "Count": 1,
+          "Name": "Prime Neuroptics",
+          "Type": "Item"
+        },
+        {
+          "Count": 1,
+          "Name": "Prime Chassis",
+          "Type": "Item"
+        },
+        {
+          "Count": 1,
+          "Name": "Prime Systems",
+          "Type": "Item"
+        },
+        {
+          "Count": 1,
+          "Name": "Orokin Cell",
+          "Type": "Resource"
+        }
+      ],
+      "ProductCategory": "Suits",
+      "Result": "Saryn Prime",
+      "Rush": 50,
+      "Time": 259200
+    },
+    "Saryn Prime Chassis": {
+      "Credits": 15000,
+      "Name": "Saryn Prime Chassis Blueprint",
+      "Parts": [
+        {
+          "Count": 3,
+          "Name": "Nitain Extract",
+          "Type": "Resource"
+        },
+        {
+          "Count": 4000,
+          "Name": "Nano Spores",
+          "Type": "Resource"
+        },
+        {
+          "Count": 1200,
+          "Name": "Rubedo",
+          "Type": "Resource"
+        }
+      ],
+      "ProductCategory": "Suits",
+      "Result": "Saryn Prime Chassis",
+      "Rush": 25,
+      "Time": 43200
+    },
+    "Saryn Prime Neuroptics": {
+      "Credits": 15000,
+      "Name": "Saryn Prime Neuroptics Blueprint",
+      "Parts": [
+        {
+          "Count": 1500,
+          "Name": "Alloy Plate",
+          "Type": "Resource"
+        },
+        {
+          "Count": 2,
+          "Name": "Neural Sensors",
+          "Type": "Resource"
+        },
+        {
+          "Count": 3500,
+          "Name": "Salvage",
+          "Type": "Resource"
+        },
+        {
+          "Count": 750,
+          "Name": "Rubedo",
+          "Type": "Resource"
+        }
+      ],
+      "ProductCategory": "Suits",
+      "Result": "Saryn Prime Neuroptics",
+      "Rush": 25,
+      "Time": 43200
+    },
+    "Saryn Prime Systems": {
+      "Credits": 15000,
+      "Name": "Saryn Prime Systems Blueprint",
+      "Parts": [
+        {
+          "Count": 3,
+          "Name": "Nitain Extract",
+          "Type": "Resource"
+        },
+        {
+          "Count": 1,
+          "Name": "Orokin Cell",
+          "Type": "Resource"
+        },
+        {
+          "Count": 4000,
+          "Name": "Ferrite",
+          "Type": "Resource"
+        },
+        {
+          "Count": 500,
+          "Name": "Circuits",
+          "Type": "Resource"
+        }
+      ],
+      "ProductCategory": "Suits",
+      "Result": "Saryn Prime Systems",
+      "Rush": 25,
+      "Time": 43200
+    }
+  }
+}
