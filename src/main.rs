@@ -1,8 +1,14 @@
-use warframe_tracker::{AppState, app, db, import};
+use warframe_tracker::{AppState, app, db, import, lua, wiki};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cmd = std::env::args().nth(1).unwrap_or_else(|| "serve".into());
+    if cmd == "dump" {
+        let dir = std::env::args()
+            .nth(2)
+            .unwrap_or_else(|| "wiki-json".into());
+        return dump(&dir).await;
+    }
     let url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     match cmd.as_str() {
         "serve" => {
@@ -19,6 +25,23 @@ async fn main() -> anyhow::Result<()> {
             import::run_import(&pool).await?;
         }
         other => anyhow::bail!("unknown command {other}; expected serve | import | dump <dir>"),
+    }
+    Ok(())
+}
+
+/// Dev tool: fetch every module and write its evaluated JSON, for fixtures and inspection.
+async fn dump(dir: &str) -> anyhow::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    let client = wiki::WikiClient::new("https://wiki.warframe.com");
+    let mut sources = std::collections::HashMap::new();
+    for t in wiki::MODULES {
+        sources.insert(t.to_string(), client.raw(t).await?);
+    }
+    for t in wiki::MODULES.iter().filter(|t| **t != "Module:Table") {
+        let v = lua::eval_module(t, &sources)?;
+        let file = format!("{dir}/{}.json", t.replace([':', '/'], "_"));
+        std::fs::write(&file, serde_json::to_vec_pretty(&v)?)?;
+        println!("wrote {file}");
     }
     Ok(())
 }

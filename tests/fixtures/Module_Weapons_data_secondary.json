@@ -1,0 +1,92 @@
+{
+  "Lex Prime": {
+    "Accuracy": 16,
+    "AmmoMax": 210,
+    "AmmoPickup": 60,
+    "AmmoType": "Secondary",
+    "Attacks": [
+      {
+        "AmmoCost": 1,
+        "AttackIndex": 1,
+        "AttackName": "Normal Attack",
+        "CritChance": 0.25,
+        "CritMultiplier": 2,
+        "Damage": {
+          "Impact": 18,
+          "Puncture": 144,
+          "Slash": 18
+        },
+        "FireRate": 2.08,
+        "IsSilent": false,
+        "MaxSpread": 12,
+        "MinSpread": 0.5,
+        "Multishot": 1,
+        "PunchThrough": 0,
+        "Range": 300,
+        "ShotType": "Hit-Scan",
+        "StatusChance": 0.25
+      },
+      {
+        "Accuracy": 16,
+        "AmmoCost": 1,
+        "AttackIndex": 2,
+        "AttackName": "Incarnon Form",
+        "CritChance": 0.35,
+        "CritMultiplier": 3,
+        "Damage": {
+          "Impact": 400,
+          "Radiation": 800
+        },
+        "Falloff": {
+          "EndRange": 18,
+          "Reduction": 0.3333,
+          "StartRange": 10
+        },
+        "FireRate": 0.67,
+        "ForcedProcs": [
+          "Impact"
+        ],
+        "IncarnonCharges": 20,
+        "IsSilent": false,
+        "MaxSpread": 12,
+        "MinSpread": 0.5,
+        "Multishot": 1,
+        "PunchThrough": 1.4,
+        "Range": 28,
+        "ShotSpeed": 110,
+        "ShotType": "Projectile",
+        "StatusChance": 0.44,
+        "Trigger": "Semi-Auto"
+      }
+    ],
+    "Class": "Pistol",
+    "Conclave": true,
+    "Disposition": 1.2,
+    "ExilusPolarity": "Naramon",
+    "Family": "Lex",
+    "GripType": "GUN_ONE_HAND",
+    "Image": "LexPrime.png",
+    "IncarnonChargeGain": 2,
+    "IncarnonImage": "LexPrimeIncarnon.png",
+    "InternalName": "/Lotus/Weapons/Tenno/Pistols/PrimeLex/PrimeLex",
+    "Introduced": "13.0",
+    "Link": "Lex Prime",
+    "Magazine": 8,
+    "Mastery": 8,
+    "MaxRank": 30,
+    "Name": "Lex Prime",
+    "Polarities": [
+      "Madurai"
+    ],
+    "Reload": 2.35,
+    "SellPrice": 5000,
+    "Slot": "Secondary",
+    "Tradable": 2,
+    "Traits": [
+      "Prime",
+      "Never Vaulted"
+    ],
+    "Trigger": "Semi-Auto",
+    "_TooltipAttackDisplay": 1
+  }
+}

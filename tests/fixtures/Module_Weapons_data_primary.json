@@ -1,0 +1,200 @@
+{
+  "Braton": {
+    "Accuracy": 28.6,
+    "AmmoMax": 540,
+    "AmmoPickup": 80,
+    "AmmoType": "Primary",
+    "Attacks": [
+      {
+        "AmmoCost": 1,
+        "AttackIndex": 1,
+        "AttackName": "Normal Attack",
+        "CritChance": 0.12,
+        "CritMultiplier": 1.6,
+        "Damage": {
+          "Impact": 7.92,
+          "Puncture": 7.92,
+          "Slash": 8.16
+        },
+        "FireRate": 8.75,
+        "IsSilent": false,
+        "MaxSpread": 5,
+        "MinSpread": 2,
+        "Multishot": 1,
+        "PunchThrough": 0,
+        "Range": 300,
+        "ShotType": "Hit-Scan",
+        "StatusChance": 0.06
+      },
+      {
+        "Accuracy": 200,
+        "AttackIndex": 2,
+        "AttackName": "Incarnon Form",
+        "CritChance": 0.3,
+        "CritMultiplier": 3,
+        "Damage": {
+          "Impact": 20,
+          "Puncture": 2,
+          "Slash": 28
+        },
+        "FireRate": 5,
+        "IncarnonCharges": 200,
+        "IsSilent": false,
+        "MaxSpread": 0.7,
+        "MinSpread": 0.3,
+        "Multishot": 1,
+        "Range": 300,
+        "ShotType": "Hit-Scan",
+        "StatusChance": 0.12,
+        "Trigger": "Auto"
+      },
+      {
+        "AttackIndex": 3,
+        "AttackName": "Incarnon Form AoE",
+        "CritChance": 0.3,
+        "CritMultiplier": 3,
+        "Damage": {
+          "Heat": 50
+        },
+        "Falloff": {
+          "EndRange": 3,
+          "Reduction": 0.1,
+          "StartRange": 0
+        },
+        "FireRate": 5,
+        "IsSilent": false,
+        "Multishot": 1,
+        "Range": 3,
+        "ShotType": "AoE",
+        "StatusChance": 0.12
+      }
+    ],
+    "Class": "Rifle",
+    "CompatibilityTags": [
+      "ASSAULT_AMMO"
+    ],
+    "Conclave": true,
+    "Disposition": 1.35,
+    "ExilusPolarity": "Naramon",
+    "Family": "Braton",
+    "GripType": "",
+    "Image": "Braton.png",
+    "IncarnonChargeGain": 10,
+    "IncarnonImage": "BratonIncarnon.png",
+    "InternalName": "/Lotus/Weapons/Tenno/Rifle/Rifle",
+    "Introduced": "Vanilla",
+    "Link": "Braton",
+    "Magazine": 45,
+    "Mastery": 0,
+    "MaxRank": 30,
+    "Name": "Braton",
+    "Reload": 2,
+    "SellPrice": 7500,
+    "Slot": "Primary",
+    "Traits": [
+      "Tenno"
+    ],
+    "Trigger": "Auto",
+    "_TooltipAttackDisplay": 1
+  },
+  "Braton Prime": {
+    "Accuracy": 28.6,
+    "AmmoMax": 600,
+    "AmmoPickup": 80,
+    "AmmoType": "Primary",
+    "Attacks": [
+      {
+        "AmmoCost": 1,
+        "AttackIndex": 1,
+        "AttackName": "Normal Attack",
+        "CritChance": 0.12,
+        "CritMultiplier": 2,
+        "Damage": {
+          "Impact": 1.75,
+          "Puncture": 12.25,
+          "Slash": 21
+        },
+        "FireRate": 9.58,
+        "IsSilent": false,
+        "MaxSpread": 5,
+        "MinSpread": 2,
+        "Multishot": 1,
+        "PunchThrough": 0,
+        "Range": 300,
+        "ShotType": "Hit-Scan",
+        "StatusChance": 0.26
+      },
+      {
+        "Accuracy": 200,
+        "AttackIndex": 2,
+        "AttackName": "Incarnon Form",
+        "CritChance": 0.3,
+        "CritMultiplier": 3,
+        "Damage": {
+          "Impact": 28,
+          "Puncture": 2.8,
+          "Slash": 39.2
+        },
+        "FireRate": 5.67,
+        "IncarnonCharges": 200,
+        "IsSilent": false,
+        "MaxSpread": 0.7,
+        "MinSpread": 0.3,
+        "Multishot": 1,
+        "Range": 300,
+        "ShotType": "Hit-Scan",
+        "StatusChance": 0.3,
+        "Trigger": "Auto"
+      },
+      {
+        "AttackIndex": 3,
+        "AttackName": "Incarnon Form AoE",
+        "CritChance": 0.3,
+        "CritMultiplier": 3,
+        "Damage": {
+          "Heat": 70
+        },
+        "Falloff": {
+          "EndRange": 3,
+          "Reduction": 0.1,
+          "StartRange": 0
+        },
+        "FireRate": 5.67,
+        "IsSilent": false,
+        "Multishot": 1,
+        "Range": 3,
+        "ShotType": "AoE",
+        "StatusChance": 0.3
+      }
+    ],
+    "Class": "Rifle",
+    "CompatibilityTags": [
+      "ASSAULT_AMMO"
+    ],
+    "Conclave": true,
+    "Disposition": 1.25,
+    "ExilusPolarity": "Naramon",
+    "Family": "Braton",
+    "GripType": "",
+    "Image": "BratonPrime.png",
+    "IncarnonChargeGain": 10,
+    "IncarnonImage": "BratonPrimeIncarnon.png",
+    "InternalName": "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+    "Introduced": "9",
+    "Link": "Braton Prime",
+    "Magazine": 75,
+    "Mastery": 8,
+    "MaxRank": 30,
+    "Name": "Braton Prime",
+    "Reload": 2.15,
+    "SellPrice": 7500,
+    "Slot": "Primary",
+    "Tradable": 2,
+    "Traits": [
+      "Prime",
+      "Never Vaulted"
+    ],
+    "Trigger": "Auto",
+    "_TooltipAttackDisplay": 1
+  }
+}

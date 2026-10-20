@@ -1,0 +1,189 @@
+{
+  "RegionResources": {
+    "Ceres": [
+      "Alloy Plate",
+      "Circuits",
+      "Orokin Cell",
+      "Detonite Ampule"
+    ],
+    "Deimos": [
+      "Nano Spores",
+      "Mutagen Sample",
+      "Orokin Cell",
+      "Neurodes"
+    ],
+    "Earth": [
+      "Ferrite",
+      "Rubedo",
+      "Neurodes",
+      "Detonite Ampule"
+    ],
+    "Eris": [
+      "Nano Spores",
+      "Plastids",
+      "Neurodes",
+      "Mutagen Sample"
+    ],
+    "Europa": [
+      "Morphics",
+      "Rubedo",
+      "Fieldron Sample",
+      "Control Module"
+    ],
+    "Höllvania": [
+      "Höllvanian Pitchweave Fragment",
+      "Experimental Arc-Relay",
+      "Efervon Sample",
+      "Techrot Chitin",
+      "Techrot Motherboard"
+    ],
+    "Jupiter": [
+      "Salvage",
+      "Hexenon",
+      "Neural Sensors",
+      "Alloy Plate"
+    ],
+    "Kuva Fortress": [
+      "Salvage",
+      "Circuits",
+      "Neural Sensors",
+      "Detonite Ampule"
+    ],
+    "Lua": [
+      "Ferrite",
+      "Rubedo",
+      "Neurodes",
+      "Detonite Ampule"
+    ],
+    "Mars": [
+      "Gallium",
+      "Morphics",
+      "Salvage",
+      "Fieldron Sample"
+    ],
+    "Mercury": [
+      "Ferrite",
+      "Polymer Bundle",
+      "Morphics",
+      "Detonite Ampule"
+    ],
+    "Neptune": [
+      "Nano Spores",
+      "Ferrite",
+      "Control Module",
+      "Fieldron Sample"
+    ],
+    "Phobos": [
+      "Rubedo",
+      "Morphics",
+      "Plastids",
+      "Alloy Plate"
+    ],
+    "Pluto": [
+      "Rubedo",
+      "Morphics",
+      "Plastids",
+      "Alloy Plate",
+      "Fieldron Sample"
+    ],
+    "Saturn": [
+      "Nano Spores",
+      "Plastids",
+      "Orokin Cell",
+      "Detonite Ampule"
+    ],
+    "Sedna": [
+      "Alloy Plate",
+      "Rubedo",
+      "Salvage",
+      "Detonite Ampule"
+    ],
+    "Uranus": [
+      "Gallium",
+      "Plastids",
+      "Polymer Bundle",
+      "Detonite Ampule"
+    ],
+    "Venus": [
+      "Alloy Plate",
+      "Polymer Bundle",
+      "Circuits",
+      "Fieldron Sample"
+    ],
+    "Void": [
+      "Ferrite",
+      "Rubedo",
+      "Argon Crystal",
+      "Control Module"
+    ],
+    "Zariman Ten Zero": [
+      "Ferrite",
+      "Alloy Plate",
+      "Voidgel Orb",
+      "Entrati Lanthorn"
+    ]
+  },
+  "MissionDetails": [
+    {
+      "Boss": "H-09 Efervon Tank",
+      "CreditReward": 7400,
+      "DropTableAlias": "1999Assassination",
+      "Drops": {},
+      "Enemy": "Scaldra",
+      "FactionImage": "H-09-Efervon-Tank-Icon.png",
+      "Id": 336,
+      "InternalName": "SolNode856",
+      "Introduced": "38",
+      "IsCrossfire": false,
+      "IsDarkSector": false,
+      "IsTracked": true,
+      "Link": "Victory Plaza",
+      "MasteryExp": 0,
+      "MaxLevel": 70,
+      "MinLevel": 65,
+      "Name": "Victory Plaza",
+      "Pic": "H-09-Efervon-Tank-Icon.png",
+      "Planet": "Höllvania",
+      "Quotes": "Victory Plaza/Quotes",
+      "RegionResources": [
+        "Höllvanian Pitchweave Fragment",
+        "Experimental Arc-Relay",
+        "Efervon Sample",
+        "Techrot Chitin",
+        "Techrot Motherboard"
+      ],
+      "Requirements": "Must have [[The Hex (Quest)]] completed to access",
+      "Tileset": "Höllvania",
+      "Type": "Assassination"
+    },
+    {
+      "CreditReward": 7400,
+      "DropTableAlias": "1999Defense",
+      "Enemy": "Scaldra",
+      "FactionImage": "ScaldraIcon.png",
+      "Id": 344,
+      "InternalName": "SolNode858",
+      "Introduced": "38.5",
+      "IsCrossfire": false,
+      "IsDarkSector": false,
+      "IsTracked": true,
+      "Link": "Solstice Square",
+      "MasteryExp": 0,
+      "MaxLevel": 70,
+      "MinLevel": 65,
+      "Name": "Solstice Square",
+      "Planet": "Höllvania",
+      "Quotes": "Solstice Square/Quotes",
+      "RegionResources": [
+        "Höllvanian Pitchweave Fragment",
+        "Experimental Arc-Relay",
+        "Efervon Sample",
+        "Techrot Chitin",
+        "Techrot Motherboard"
+      ],
+      "Requirements": "Must have [[The Hex (Quest)]] completed to access",
+      "Tileset": "Höllvania",
+      "Type": "Stage Defense"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "Arcanes": {
+    "Arcane Energize": {
+      "CodexSecret": true,
+      "Description": "On Energy Pickup:\r\n60% chance to replenish 150 Energy to self and allies within 15m\r\n15s cooldown",
+      "Dissolution": 98,
+      "Icon": "ArcaneEnergize64x.png",
+      "Image": "ArcaneEnergize.png",
+      "IncompatibilityTags": [
+        "OPERATOR_SUIT"
+      ],
+      "InternalName": "/Lotus/Upgrades/CosmeticEnhancers/Utility/GolemArcaneRadialEnergyOnEnergyPickup",
+      "Introduced": "17.9.1",
+      "IsRefreshable": false,
+      "Link": "Arcane Energize",
+      "MaxRank": 5,
+      "Name": "Arcane Energize",
+      "Rarity": "Legendary",
+      "Type": "Warframe",
+      "UpgradeTypes": [
+        "GAMEPLAY_FREE_REVIVE_COUNT"
+      ]
+    }
+  }
+}

@@ -1,0 +1,407 @@
+{
+  "Missions": {
+    "1999Assassination": {
+      "Alias": "1999Assassination",
+      "InternalName": "/Lotus/Types/Game/MissionDecks/1999MissionRewards/TankAssassinateRewards",
+      "Link": "Assassination",
+      "Name": "Assassination",
+      "Rewards": {
+        "A": [
+          [
+            "Credits Cache",
+            "Credits",
+            26.669999999999998,
+            10000
+          ],
+          [
+            "Endo",
+            "Resource",
+            20,
+            900
+          ],
+          [
+            "Meso Y2",
+            "Relic",
+            6.67
+          ],
+          [
+            "Meso V15",
+            "Relic",
+            6.67
+          ],
+          [
+            "Meso X1",
+            "Relic",
+            6.67
+          ],
+          [
+            "Meso D8",
+            "Relic",
+            6.67
+          ],
+          [
+            "Meso V13",
+            "Relic",
+            6.67
+          ],
+          [
+            "Meso A12",
+            "Relic",
+            6.67
+          ],
+          [
+            "Meso L5",
+            "Relic",
+            6.67
+          ],
+          [
+            "Meso K8",
+            "Relic",
+            6.67
+          ]
+        ]
+      },
+      "Tier": "1999",
+      "Type": "Assassination"
+    },
+    "1999Defense": {
+      "Alias": "1999Defense",
+      "InternalName": "/Lotus/Types/Game/MissionDecks/1999MissionRewards/DefenseRewards",
+      "Link": "Defense",
+      "Name": "Solstice Square",
+      "Rewards": {
+        "A": [
+          [
+            "Endo",
+            "Resource",
+            14.56,
+            600
+          ],
+          [
+            "Meso Y2",
+            "Relic",
+            9.71
+          ],
+          [
+            "Meso V15",
+            "Relic",
+            9.71
+          ],
+          [
+            "Meso X1",
+            "Relic",
+            9.71
+          ],
+          [
+            "Meso D8",
+            "Relic",
+            9.71
+          ],
+          [
+            "Meso V13",
+            "Relic",
+            9.71
+          ],
+          [
+            "Meso A12",
+            "Relic",
+            9.71
+          ],
+          [
+            "Meso L5",
+            "Relic",
+            9.71
+          ],
+          [
+            "Meso K8",
+            "Relic",
+            9.71
+          ],
+          [
+            "Riot-848 Barrel Blueprint",
+            "Blueprint",
+            0.97
+          ],
+          [
+            "Riot-848 Receiver Blueprint",
+            "Blueprint",
+            0.97
+          ],
+          [
+            "Riot-848 Stock Blueprint",
+            "Blueprint",
+            0.97
+          ],
+          [
+            "Riot-848 Blueprint",
+            "Blueprint",
+            0.97
+          ],
+          [
+            "Temple Neuroptics Blueprint",
+            "Blueprint",
+            0.97
+          ],
+          [
+            "Temple Chassis Blueprint",
+            "Blueprint",
+            0.97
+          ],
+          [
+            "Temple Systems Blueprint",
+            "Blueprint",
+            0.97
+          ],
+          [
+            "Temple Blueprint",
+            "Blueprint",
+            0.97
+          ]
+        ],
+        "B": [
+          [
+            "Endo",
+            "Resource",
+            14.85,
+            900
+          ],
+          [
+            "Neo C7",
+            "Relic",
+            9.9
+          ],
+          [
+            "Neo A16",
+            "Relic",
+            9.9
+          ],
+          [
+            "Neo Y1",
+            "Relic",
+            9.9
+          ],
+          [
+            "Neo T11",
+            "Relic",
+            9.9
+          ],
+          [
+            "Neo V12",
+            "Relic",
+            9.9
+          ],
+          [
+            "Neo C8",
+            "Relic",
+            9.9
+          ],
+          [
+            "Neo C9",
+            "Relic",
+            9.9
+          ],
+          [
+            "Riot-848 Barrel Blueprint",
+            "Blueprint",
+            1.9799999999999998
+          ],
+          [
+            "Riot-848 Receiver Blueprint",
+            "Blueprint",
+            1.9799999999999998
+          ],
+          [
+            "Riot-848 Stock Blueprint",
+            "Blueprint",
+            1.9799999999999998
+          ],
+          [
+            "Riot-848 Blueprint",
+            "Blueprint",
+            1.9799999999999998
+          ],
+          [
+            "Temple Chassis Blueprint",
+            "Blueprint",
+            1.9799999999999998
+          ],
+          [
+            "Temple Neuroptics Blueprint",
+            "Blueprint",
+            1.9799999999999998
+          ],
+          [
+            "Temple Systems Blueprint",
+            "Blueprint",
+            1.9799999999999998
+          ],
+          [
+            "Temple Blueprint",
+            "Blueprint",
+            1.9799999999999998
+          ]
+        ],
+        "C": [
+          [
+            "Endo",
+            "Resource",
+            14.31,
+            1200
+          ],
+          [
+            "Axi S20",
+            "Relic",
+            8.18
+          ],
+          [
+            "Axi D6",
+            "Relic",
+            8.18
+          ],
+          [
+            "Axi V14",
+            "Relic",
+            8.18
+          ],
+          [
+            "Axi T13",
+            "Relic",
+            8.18
+          ],
+          [
+            "Axi A21",
+            "Relic",
+            8.18
+          ],
+          [
+            "Axi A22",
+            "Relic",
+            8.18
+          ],
+          [
+            "Temple Chassis Blueprint",
+            "Blueprint",
+            4.58
+          ],
+          [
+            "Temple Neuroptics Blueprint",
+            "Blueprint",
+            4.58
+          ],
+          [
+            "Temple Systems Blueprint",
+            "Blueprint",
+            4.58
+          ],
+          [
+            "Temple Blueprint",
+            "Blueprint",
+            4.58
+          ],
+          [
+            "Riot-848 Barrel Blueprint",
+            "Blueprint",
+            4.58
+          ],
+          [
+            "Riot-848 Receiver Blueprint",
+            "Blueprint",
+            4.58
+          ],
+          [
+            "Riot-848 Stock Blueprint",
+            "Blueprint",
+            4.58
+          ],
+          [
+            "Riot-848 Blueprint",
+            "Blueprint",
+            4.58
+          ]
+        ]
+      },
+      "Tier": "1999",
+      "Type": "Defense"
+    }
+  },
+  "Enemies": {
+    "Aerial Commander": {
+      "ModChance": 100,
+      "Mods": [
+        [
+          "Gladiator Might",
+          "Mod",
+          11.06
+        ],
+        [
+          "Gladiator Rush",
+          "Mod",
+          37.94
+        ],
+        [
+          "Gladiator Vice",
+          "Mod",
+          0.5
+        ],
+        [
+          "Gladiator Aegis",
+          "Mod",
+          37.94
+        ],
+        [
+          "Gladiator Finesse",
+          "Mod",
+          0.5
+        ],
+        [
+          "Gladiator Resolve",
+          "Mod",
+          11.06
+        ],
+        [
+          "Swooping Falcon",
+          "Mod",
+          0.5
+        ],
+        [
+          "Kinetic Diversion",
+          "Mod",
+          0.5
+        ]
+      ],
+      "Name": "Aerial Commander",
+      "ResourceChance": 7,
+      "Resources": [
+        [
+          "Region Resource",
+          "Resource",
+          100
+        ]
+      ]
+    }
+  },
+  "Containers": {
+    "Carrypod": {
+      "Link": "Zariman Ten Zero",
+      "Name": "Carrypod",
+      "ResourceChance": 25,
+      "Resources": [
+        [
+          "Region Resource",
+          "Resource",
+          75.88
+        ],
+        [
+          "Nav Coordinate",
+          "Resource",
+          22.11
+        ],
+        [
+          "Oxium",
+          "Resource",
+          2.01
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "Resources": {
+    "Alloy Plate": {
+      "Amount": [
+        50,
+        150
+      ],
+      "ContainerImage": "AlloyPlateContainer.png",
+      "Description": "Carbon steel plates used to reinforce Grineer armor.\r\n\r\nLocation: Venus, Phobos, Ceres, Jupiter, Pluto, and Sedna.",
+      "HelminthCategory": "Oxides",
+      "HelminthCost": 15000,
+      "HelminthGain": 0.3,
+      "Image": "AlloyPlate.png",
+      "InternalName": "/Lotus/Types/Items/MiscItems/AlloyPlate",
+      "Introduced": "Vanilla",
+      "Link": "Alloy Plate",
+      "Name": "Alloy Plate",
+      "Rarity": "Common",
+      "ResourceBoostAble": true,
+      "ResourceDropChanceBoostAble": true,
+      "RetrieverModAble": true,
+      "Type": "Resource"
+    },
+    "Nano Spores": {
+      "Amount": [
+        150,
+        200
+      ],
+      "ContainerImage": "NanoSporesContainer.png",
+      "Description": "Fibrous technocyte tumour. Handle Infested tissue with caution.\r\n\r\nLocation: Saturn, Neptune, Eris, and Deimos",
+      "HelminthCategory": "Pheromones",
+      "HelminthCost": 20000,
+      "HelminthGain": 0.3,
+      "Image": "NanoSpores.png",
+      "InternalName": "/Lotus/Types/Items/MiscItems/Nanospores",
+      "Introduced": "Vanilla",
+      "Link": "Nano Spores",
+      "Name": "Nano Spores",
+      "Rarity": "Common",
+      "ResourceBoostAble": true,
+      "ResourceDropChanceBoostAble": true,
+      "RetrieverModAble": true,
+      "Type": "Resource"
+    },
+    "Neural Sensors": {
+      "Amount": [
+        1,
+        2
+      ],
+      "ContainerImage": "NeuralSensorContainer.png",
+      "Description": "Implanted neural-link for controlling augmentations. Grineer design.\r\n\r\nLocation: Jupiter",
+      "HelminthCategory": "Synthetics",
+      "HelminthCost": 25,
+      "HelminthGain": 0.3,
+      "Image": "NeuralSensors.png",
+      "InternalName": "/Lotus/Types/Items/MiscItems/NeuralSensor",
+      "Introduced": "Vanilla",
+      "Link": "Neural Sensors",
+      "Name": "Neural Sensors",
+      "Rarity": "Rare",
+      "ResourceBoostAble": true,
+      "ResourceDropChanceBoostAble": true,
+      "RetrieverModAble": true,
+      "Type": "Resource"
+    },
+    "Neurodes": {
+      "Amount": [
+        1,
+        1
+      ],
+      "ContainerImage": "NeurodesContainer.png",
+      "Description": "Biotech sensor organ harvested from Infested entities.\r\n\r\nLocation: Earth, Lua, Eris, and Deimos",
+      "HelminthCategory": "Pheromones",
+      "HelminthCost": 15,
+      "HelminthGain": 0.3,
+      "Image": "Neurodes.png",
+      "InternalName": "/Lotus/Types/Items/MiscItems/Neurode",
+      "Introduced": "Vanilla",
+      "Link": "Neurodes",
+      "Name": "Neurodes",
+      "Rarity": "Rare",
+      "ResourceBoostAble": true,
+      "ResourceDropChanceBoostAble": true,
+      "RetrieverModAble": true,
+      "Type": "Resource"
+    },
+    "Nitain Extract": {
+      "Amount": [
+        1,
+        1
+      ],
+      "Description": "Each vial is produced by the painstaking expression of billions of rare, ocean-vent dwelling microorganisms.\r\n\r\nLocation: Nightwave Cred Offerings",
+      "Image": "NitainExtract.png",
+      "InternalName": "/Lotus/Types/Items/MiscItems/Alertium",
+      "Introduced": "17.12",
+      "Link": "Nitain Extract",
+      "Name": "Nitain Extract",
+      "ResourceBoostAble": false,
+      "ResourceDropChanceBoostAble": false,
+      "RetrieverModAble": false,
+      "Type": "Resource"
+    },
+    "Orokin Cell": {
+      "Amount": [
+        1,
+        1
+      ],
+      "ContainerImage": "OrokinCellContainer.png",
+      "Description": "Ancient energy cell from the Orokin era.\r\n\r\nLocation: Ceres, Saturn, and Deimos",
+      "HelminthCategory": "Synthetics",
+      "HelminthCost": 15,
+      "HelminthGain": 0.3,
+      "Image": "OrokinCell.png",
+      "InternalName": "/Lotus/Types/Items/MiscItems/OrokinCell",
+      "Introduced": "Vanilla",
+      "Link": "Orokin Cell",
+      "Name": "Orokin Cell",
+      "Rarity": "Rare",
+      "ResourceBoostAble": true,
+      "ResourceDropChanceBoostAble": true,
+      "RetrieverModAble": true,
+      "Type": "Resource"
+    },
+    "Rubedo": {
+      "Amount": [
+        15,
+        25
+      ],
+      "ContainerImage": "RubedoContainer.png",
+      "Description": "A jagged crystalline ore. Gives off radiant energy.\r\n\r\nLocation: Earth, Lua, Phobos, Europa, Pluto, Sedna, and the Void",
+      "HelminthCategory": "Calx",
+      "HelminthCost": 6000,
+      "HelminthGain": 0.3,
+      "Image": "Rubedo.png",
+      "InternalName": "/Lotus/Types/Items/MiscItems/Rubedo",
+      "Introduced": "Vanilla",
+      "Link": "Rubedo",
+      "Name": "Rubedo",
+      "Rarity": "Uncommon",
+      "ResourceBoostAble": true,
+      "ResourceDropChanceBoostAble": true,
+      "RetrieverModAble": true,
+      "Type": "Resource"
+    },
+    "Salvage": {
+      "Amount": [
+        75,
+        150
+      ],
+      "ContainerImage": "SalvageContainer.png",
+      "Description": "High value metals collected from war salvage.\r\n\r\nLocation: Mars, Jupiter, and Sedna",
+      "HelminthCategory": "Oxides",
+      "HelminthCost": 20000,
+      "HelminthGain": 0.3,
+      "Image": "Salvage.png",
+      "InternalName": "/Lotus/Types/Items/MiscItems/Salvage",
+      "Introduced": "Vanilla",
+      "Link": "Salvage",
+      "Name": "Salvage",
+      "Rarity": "Common",
+      "ResourceBoostAble": true,
+      "ResourceDropChanceBoostAble": true,
+      "RetrieverModAble": true,
+      "Type": "Resource"
+    }
+  }
+}

@@ -24,6 +24,19 @@
 - Dev DB: compose project `warframe-tracker`, host port **5433**, `postgres://postgres:postgres@localhost:5433/warframe`.
 - Tests need Postgres at `DATABASE_URL`. Each test gets a fresh database via `db::test_pool()`, so parallel worktrees and parallel tests never collide. Do **not** run `docker compose down`, and don't start your own Postgres.
 
+### Learned during Phase 1 (authoritative over any code snippet below)
+
+- **sqlx 0.9:** a SQL string that isn't `&'static str` (anything built with `format!`) must be wrapped: `sqlx::query(sqlx::AssertSqlSafe(sql))`, `sqlx::raw_sql(sqlx::AssertSqlSafe(..))`. Only interpolate constants, never user input; bind user input with `$n`.
+- **mlua 0.12:** `use mlua::serde::DeserializeOptions`; the `error-send` feature is on so `?` into `anyhow` works.
+- **reqwest 0.13:** features are `rustls`, `json`, `query`.
+- **Full JSON dumps of every module** are at `/Users/graytonw/repos/warframe-tracker/wiki-json/` (gitignored, read-only for workers; regenerate with `cargo run -- dump wiki-json`).
+- **Real shapes:**
+  - `Blueprints/data` has top-level groups `Blueprints` and `Suits`, both objects keyed by result name. Part `Type` values include `Resource`, `Item`, `PrimePart`, `Weapon`. Braton Prime's parts are `Barrel` / `Receiver` / `Stock` with `Type: "PrimePart"`.
+  - `DropTables/data.Missions` is keyed by a drop-table **alias** (e.g. `"1999Defense"`) with a generic `Name` (`"Assassination"`). Every `Rewards` value is an object keyed by rotation (`A`/`B`/`C`). Entries are `[name, type, chance, quantity?]`, and relic entries are plain names (`"Meso Y2"`, type `"Relic"`).
+  - `Missions/data.MissionDetails[]` rows have `Name` (node), `Planet`, `Type` and `DropTableAlias`. Use them to name a mission source `"{Planet} / {Name} ({Type})"`, with one `drop_sources` row per node sharing the alias. Fall back to the drop table's `Name` when no node uses the alias (bounties, events). `Missions/data` also has `RegionResources`.
+  - `Void/data.RelicData[relic]` has `Drops[{Item, Part, Rarity}]`, `Tier`, `Vaulted` (a version string when vaulted, absent otherwise) and `Name`.
+  - `Warframes/data` also has `Archwings`, `Necramechs` and `Operators` groups. v1 imports only `Warframes`.
+
 ## Review Focus
 
 1. **Wiki name mismatches.** Recipe parts like `"Prime Neuroptics"` must resolve to the `"Saryn Prime Neuroptics"` component, not to an orphan item. Task 3 pins this with a Saryn Prime fixture test.

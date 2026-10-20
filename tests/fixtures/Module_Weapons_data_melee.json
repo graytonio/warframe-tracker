@@ -1,0 +1,96 @@
+{
+  "Skana": {
+    "Attacks": [
+      {
+        "AttackIndex": 1,
+        "AttackName": "Normal Attack",
+        "CritChance": 0.05,
+        "CritMultiplier": 1.5,
+        "Damage": {
+          "Impact": 18,
+          "Puncture": 18,
+          "Slash": 84
+        },
+        "FireRate": 0.833,
+        "IsSilent": true,
+        "StatusChance": 0.16
+      },
+      {
+        "AttackIndex": 2,
+        "AttackName": "Slam Attack",
+        "CritChance": 0.05,
+        "CritMultiplier": 1.5,
+        "Damage": {
+          "Impact": 240
+        },
+        "Falloff": {
+          "EndRange": 7,
+          "Reduction": 0.5,
+          "StartRange": 0
+        },
+        "FireRate": 0.833,
+        "ForcedProcs": [
+          "Impact"
+        ],
+        "IsSilent": true,
+        "Range": 7,
+        "ShotType": "AoE",
+        "StatusChance": 0.1
+      },
+      {
+        "AttackIndex": 3,
+        "AttackName": "Heavy Slam Attack",
+        "CritChance": 0.05,
+        "CritMultiplier": 1.5,
+        "Damage": {
+          "Blast": 360
+        },
+        "Falloff": {
+          "EndRange": 8,
+          "Reduction": 0.3,
+          "StartRange": 0
+        },
+        "FireRate": 0.833,
+        "ForcedProcs": [
+          "Lifted"
+        ],
+        "IsSilent": true,
+        "Range": 8,
+        "ShotType": "AoE",
+        "StatusChance": 0.1
+      }
+    ],
+    "BlockAngle": 55,
+    "Class": "Sword",
+    "ComboDur": 5,
+    "CompatibilityTags": [
+      "SWORDS_STANCE"
+    ],
+    "Conclave": true,
+    "Disposition": 1.3,
+    "Family": "Skana",
+    "FollowThrough": 0.6,
+    "GripType": "MELEE_ONE_HAND",
+    "HeavyAttack": 600,
+    "Image": "Skana.png",
+    "IncarnonDuration": 180,
+    "IncarnonImage": "SkanaIncarnon.png",
+    "InternalName": "/Lotus/Weapons/Tenno/Melee/LongSword/LongSword",
+    "Introduced": "Vanilla",
+    "Link": "Skana",
+    "Mastery": 0,
+    "MaxRank": 30,
+    "MeleeRange": 2.5,
+    "Name": "Skana",
+    "SellPrice": 5000,
+    "SlideAttack": 75,
+    "Slot": "Melee",
+    "StancePolarity": "Madurai",
+    "SweepRadius": 0.25,
+    "Traits": [
+      "Tenno"
+    ],
+    "WindUp": 0.6,
+    "_TooltipAttackDisplay": 1
+  }
+}
