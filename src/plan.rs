@@ -45,6 +45,8 @@ pub struct Need {
     #[serde(rename = "for")]
     pub for_: Vec<ItemRef>,
     sources: Vec<Source>,
+    /// The wiki's prose `Location:` line (resources only). Display only.
+    pub location_hint: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -66,10 +68,30 @@ pub struct SourceGroup {
     pub covers: Vec<Cover>,
 }
 
+/// A planet or open world, with the needs it covers.
+#[derive(Serialize, Debug)]
+pub struct LocationGroup {
+    pub place: String,
+    /// The place has mission nodes, so `nodes` can name some.
+    pub known: bool,
+    pub covers: Vec<LocationCover>,
+    /// Up to 5 example nodes.
+    pub nodes: Vec<String>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct LocationCover {
+    pub item_id: i64,
+    pub name: String,
+    /// e.g. `["region resource", "3 missions", "12 enemies"]`
+    pub via: Vec<String>,
+}
+
 #[derive(Serialize, Debug)]
 pub struct Plan {
     pub by_need: Vec<Need>,
     pub by_source: Vec<SourceGroup>,
+    pub by_location: Vec<LocationGroup>,
     pub unsourced: Vec<Need>,
 }
 
@@ -104,16 +126,156 @@ pub async fn build_plan(pool: &PgPool, user_id: i64, opts: PlanOptions) -> sqlx:
         }
         needs.get_mut(&id).unwrap().sources.push(s);
     }
+    let hints: Vec<(i64, Option<String>)> =
+        sqlx::query_as("SELECT id, location_hint FROM items WHERE id = ANY($1)")
+            .bind(&ids)
+            .fetch_all(pool)
+            .await?;
+    for (id, h) in hints {
+        needs.get_mut(&id).unwrap().location_hint = h;
+    }
     let mut needs: Vec<Need> = needs.into_values().collect();
     needs.sort_by(|a, b| a.item.name.cmp(&b.item.name));
     let (by_need, unsourced): (Vec<_>, Vec<_>) =
         needs.into_iter().partition(|n| !n.sources.is_empty());
 
+    let enemies: Vec<&str> = by_need
+        .iter()
+        .flat_map(|n| &n.sources)
+        .filter(|s| s.kind == "enemy")
+        .map(|s| s.name.as_str())
+        .collect();
+    let mut enemy_places: HashMap<String, Vec<String>> = HashMap::new();
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT DISTINCT enemy_name, planet FROM enemy_locations WHERE enemy_name = ANY($1) ORDER BY 1, 2",
+    )
+    .bind(&enemies)
+    .fetch_all(pool)
+    .await?;
+    for (e, p) in rows {
+        enemy_places.entry(e).or_default().push(p);
+    }
+    // Places with mission nodes.
+    let known: HashSet<String> = sqlx::query_scalar(
+        "SELECT DISTINCT split_part(source_name, ' / ', 1) FROM drop_sources
+         WHERE source_kind = 'mission' AND source_name LIKE '% / %'",
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .collect();
+
     Ok(Plan {
         by_source: group(&by_need),
+        by_location: by_location(&by_need, &enemy_places, &known),
         by_need,
         unsourced,
     })
+}
+
+/// Roll each need's sources up to the places they're found: `planet` when set, else every
+/// planet of an enemy source. Needs with no place are left out.
+fn by_location(
+    needs: &[Need],
+    enemy_places: &HashMap<String, Vec<String>>,
+    known: &HashSet<String>,
+) -> Vec<LocationGroup> {
+    const KINDS: [&str; 4] = ["planet", "mission", "enemy", "container"];
+    /// (need index, distinct source names per kind in KINDS order)
+    type Tally<'a> = (usize, [HashSet<&'a str>; 4]);
+    let mut places: HashMap<&str, Vec<Tally>> = HashMap::new();
+    let mut nodes: HashMap<&str, Vec<&str>> = HashMap::new();
+    for (i, n) in needs.iter().enumerate() {
+        for s in &n.sources {
+            let Some(k) = KINDS.iter().position(|k| *k == s.kind) else {
+                continue;
+            };
+            let at: Vec<&str> = match (&s.planet, s.kind.as_str()) {
+                (Some(p), _) => vec![p.as_str()],
+                (None, "enemy") => enemy_places
+                    .get(&s.name)
+                    .into_iter()
+                    .flatten()
+                    .map(String::as_str)
+                    .collect(),
+                _ => vec![],
+            };
+            for p in at {
+                let covers = places.entry(p).or_default();
+                if covers.last().is_none_or(|(j, _)| *j != i) {
+                    covers.push((i, Default::default()));
+                }
+                covers.last_mut().unwrap().1[k].insert(&s.name);
+                // ponytail: nodes come from mission sources only; tileset-inferred examples deferred
+                let node = match s.name.split_once(" / ") {
+                    Some((_, rest)) if s.kind == "mission" => rest.split(" (").next(),
+                    _ => None,
+                };
+                if let Some(node) = node {
+                    let ns = nodes.entry(p).or_default();
+                    if ns.len() < 5 && !ns.contains(&node) {
+                        ns.push(node);
+                    }
+                }
+            }
+        }
+    }
+    let mut out: Vec<(usize, LocationGroup)> = places
+        .into_iter()
+        .map(|(place, covers)| {
+            let total = covers
+                .iter()
+                .map(|(_, c)| c.iter().map(HashSet::len).sum::<usize>())
+                .sum();
+            let known = known.contains(place);
+            let group = LocationGroup {
+                place: place.to_string(),
+                known,
+                covers: covers
+                    .into_iter()
+                    .map(|(i, by_kind)| LocationCover {
+                        item_id: needs[i].item.id,
+                        name: needs[i].item.name.clone(),
+                        via: via(by_kind.map(|s| s.len())),
+                    })
+                    .collect(),
+                nodes: match known {
+                    true => nodes.remove(place).unwrap_or_default(),
+                    false => vec![],
+                }
+                .into_iter()
+                .map(String::from)
+                .collect(),
+            };
+            (total, group)
+        })
+        .collect();
+    out.sort_by(|(ta, a), (tb, b)| {
+        b.covers
+            .len()
+            .cmp(&a.covers.len())
+            .then(tb.cmp(ta))
+            .then(a.place.cmp(&b.place))
+    });
+    out.into_iter().map(|(_, g)| g).collect()
+}
+
+/// `[planet, mission, enemy, container]` source counts → `["region resource", "3 missions", …]`.
+fn via([planet, mission, enemy, container]: [usize; 4]) -> Vec<String> {
+    let mut v = vec![];
+    if planet > 0 {
+        v.push("region resource".to_string());
+    }
+    for (n, one, many) in [
+        (mission, "mission", "missions"),
+        (enemy, "enemy", "enemies"),
+        (container, "container", "containers"),
+    ] {
+        if n > 0 {
+            v.push(format!("{n} {}", if n == 1 { one } else { many }));
+        }
+    }
+    v
 }
 
 /// Everything still missing across all wishlist trees.
@@ -197,6 +359,7 @@ fn collect(trees: &[ProgressNode], sourced: &HashSet<i64>) -> HashMap<i64, Need>
                     have: node.have,
                     for_: roots.clone(),
                     sources: vec![],
+                    location_hint: None,
                 },
             );
         }
@@ -457,6 +620,198 @@ mod tests {
         assert!(conclave(&build_plan(&pool, 1, on).await.unwrap()));
     }
 
+    /// Wishlist item 99 needs every listed resource once; `sql` adds sources.
+    async fn seed_places(pool: &sqlx::PgPool, resources: &[(i64, &str)], sql: &str) {
+        let items: Vec<String> = resources
+            .iter()
+            .map(|(id, n)| format!("({id},'{n}','resource')"))
+            .collect();
+        let recipes: Vec<String> = resources
+            .iter()
+            .map(|(id, _)| format!("(99,{id},1)"))
+            .collect();
+        sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
+            "INSERT INTO items (id, wiki_name, category) VALUES (99,'Widget','weapon'),{};
+             INSERT INTO recipes VALUES {};
+             INSERT INTO wishlist (user_id,item_id) VALUES (1,99);
+             {sql}",
+            items.join(","),
+            recipes.join(",")
+        )))
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    /// `(place, known, [(need, via)], nodes)` for compact assertions.
+    type Loc = (String, bool, Vec<(String, Vec<String>)>, Vec<String>);
+    fn locs(p: &super::Plan) -> Vec<Loc> {
+        p.by_location
+            .iter()
+            .map(|g| {
+                (
+                    g.place.clone(),
+                    g.known,
+                    g.covers
+                        .iter()
+                        .map(|c| (c.name.clone(), c.via.clone()))
+                        .collect(),
+                    g.nodes.clone(),
+                )
+            })
+            .collect()
+    }
+    fn s(v: &[&str]) -> Vec<String> {
+        v.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[tokio::test]
+    async fn signals_merge_per_place() {
+        let pool = test_pool().await;
+        seed_places(
+            &pool,
+            &[(20, "Rubedo"), (21, "Neurodes")],
+            "INSERT INTO drop_sources (source_kind,source_name,rotation,item_id,chance,planet) VALUES
+               ('planet','Earth',null,20,null,'Earth'),
+               ('mission','Earth / Mantle (Defense)','A',21,10,'Earth'),
+               ('mission','Earth / Mantle (Defense)','B',21,10,'Earth'),
+               ('enemy','Earth Grunt',null,21,5,null);
+             INSERT INTO enemy_locations VALUES ('Earth Grunt','Earth','Grineer Forest');",
+        )
+        .await;
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
+        assert_eq!(
+            locs(&p),
+            vec![(
+                "Earth".into(),
+                true,
+                vec![
+                    ("Neurodes".into(), s(&["1 mission", "1 enemy"])),
+                    ("Rubedo".into(), s(&["region resource"]))
+                ],
+                s(&["Mantle"])
+            )]
+        );
+    }
+
+    #[tokio::test]
+    async fn enemy_only_need_rolls_up_to_enemy_planets() {
+        let pool = test_pool().await;
+        seed_places(
+            &pool,
+            &[(30, "Isos")],
+            "INSERT INTO drop_sources (source_kind,source_name,item_id,chance) VALUES
+               ('enemy','Taro Crewship',30,5);
+             INSERT INTO enemy_locations VALUES ('Taro Crewship','Venus Proxima','Free Space'),
+               ('Taro Crewship','Venus Proxima','Other'),('Taro Crewship','Neptune Proxima','Free Space');",
+        )
+        .await;
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
+        let isos = vec![("Isos".to_string(), s(&["1 enemy"]))];
+        assert_eq!(
+            locs(&p),
+            vec![
+                ("Neptune Proxima".into(), false, isos.clone(), vec![]),
+                ("Venus Proxima".into(), false, isos, vec![])
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn relic_route_places_at_mission_planet() {
+        let pool = test_pool().await;
+        seed(&pool).await;
+        sqlx::raw_sql(
+            "UPDATE drop_sources SET planet = 'Earth' WHERE source_name = 'Earth/Mantle'",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
+        let earth = p.by_location.iter().find(|g| g.place == "Earth").unwrap();
+        assert_eq!(earth.covers.len(), 1);
+        assert_eq!(earth.covers[0].name, "Saryn Prime Neuroptics");
+        assert_eq!(earth.covers[0].via, s(&["1 mission"]));
+    }
+
+    #[tokio::test]
+    async fn pvp_and_unplaced_needs_excluded_from_by_location() {
+        let pool = test_pool().await;
+        seed_places(
+            &pool,
+            &[(40, "Ferrite"), (41, "Oxium")],
+            "INSERT INTO drop_sources (source_kind,source_name,rotation,item_id,chance,is_pvp,planet) VALUES
+               ('mission','Saturn / Lunaro Arena (Conclave)','B',40,12,true,'Saturn'),
+               ('enemy','Oxium Osprey',null,41,5,false,null);
+             UPDATE items SET location_hint = 'Jupiter, Pluto' WHERE id = 41;",
+        )
+        .await;
+        let off = build_plan(&pool, 1, Default::default()).await.unwrap();
+        assert!(off.by_location.is_empty(), "{:?}", locs(&off));
+        let oxium = off.by_need.iter().find(|n| n.item.name == "Oxium").unwrap();
+        assert_eq!(oxium.location_hint.as_deref(), Some("Jupiter, Pluto"));
+        let on = build_plan(&pool, 1, super::PlanOptions { include_pvp: true })
+            .await
+            .unwrap();
+        assert_eq!(
+            locs(&on),
+            vec![(
+                "Saturn".into(),
+                true,
+                vec![("Ferrite".into(), s(&["1 mission"]))],
+                s(&["Lunaro Arena"])
+            )]
+        );
+    }
+
+    #[tokio::test]
+    async fn location_sort_and_nodes() {
+        let pool = test_pool().await;
+        // Alpha: six Mars nodes. Beta: one Mars node, two Venus enemies, one Perita enemy.
+        // An unrelated Venus mission makes Venus known without giving it nodes.
+        seed_places(
+            &pool,
+            &[(50, "Alpha"), (51, "Beta")],
+            "INSERT INTO items (id, wiki_name, category) VALUES (53,'Other','resource');
+             INSERT INTO drop_sources (source_kind,source_name,rotation,item_id,chance,planet) VALUES
+               ('mission','Mars / N1 (Spy)','A',50,10,'Mars'),('mission','Mars / N2 (Spy)','A',50,10,'Mars'),
+               ('mission','Mars / N3 (Spy)','A',50,10,'Mars'),('mission','Mars / N4 (Spy)','A',50,10,'Mars'),
+               ('mission','Mars / N5 (Spy)','A',50,10,'Mars'),('mission','Mars / N6 (Spy)','A',50,10,'Mars'),
+               ('mission','Mars / N1 (Spy)','A',51,10,'Mars'),
+               ('enemy','G1',null,51,5,null),('enemy','G2',null,51,5,null),
+               ('mission','Venus / Aphrodite (Exterminate)','A',53,10,'Venus');
+             INSERT INTO enemy_locations VALUES ('G1','Venus',''),('G2','Venus',''),('G1','Perita','');",
+        )
+        .await;
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
+        assert_eq!(
+            locs(&p),
+            vec![
+                (
+                    "Mars".into(),
+                    true,
+                    vec![
+                        ("Alpha".into(), s(&["6 missions"])),
+                        ("Beta".into(), s(&["1 mission"]))
+                    ],
+                    s(&["N1", "N2", "N3", "N4", "N5"])
+                ),
+                (
+                    "Venus".into(),
+                    true,
+                    vec![("Beta".into(), s(&["2 enemies"]))],
+                    vec![]
+                ),
+                (
+                    "Perita".into(),
+                    false,
+                    vec![("Beta".into(), s(&["1 enemy"]))],
+                    vec![]
+                ),
+            ]
+        );
+    }
+
     #[tokio::test]
     async fn plan_route_on_empty_db_is_200_and_empty() {
         use crate::{AppState, app};
@@ -474,7 +829,7 @@ mod tests {
         let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(
             v,
-            serde_json::json!({"by_need": [], "by_source": [], "unsourced": []})
+            serde_json::json!({"by_need": [], "by_source": [], "by_location": [], "unsourced": []})
         );
     }
 }
