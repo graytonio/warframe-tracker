@@ -2,12 +2,14 @@
 
 Self-hosted Warframe farming tracker. It imports game data (warframes, weapons, mods, arcanes, their components, resources, relics and drop tables) from the official wiki's Lua data modules, lets you wishlist items, check off components and record inventory counts, and turns what's still missing into a grouped farm plan.
 
-One Rust binary with three subcommands:
+One Rust server binary with these subcommands, plus the `wft-sync` client (see [Syncing inventory](#syncing-inventory-from-the-game)):
 
 | Command | Does |
 |---|---|
 | `warframe-tracker serve` | API + the React UI on port 3000 (default) |
 | `warframe-tracker import` | Fetch changed wiki modules and upsert game data. Unchanged revisions are skipped, and user data is never touched |
+| `warframe-tracker token create --name N [--user ID]` | Print a new API token for `wft-sync` (only its hash is stored) |
+| `warframe-tracker token revoke --name N` | Revoke a token (exit 1 if there's no such token) |
 | `warframe-tracker dump <dir>` | Dev tool: write every evaluated module as JSON |
 
 Config: `DATABASE_URL` (required) and `WEB_DIR` (static UI dir, default `web/dist`). The schema is applied on startup.
@@ -20,6 +22,71 @@ docker run --rm -e DATABASE_URL=... ghcr.io/graytonio/warframe-tracker:latest im
 ```
 
 The UI shows a banner until the first import has run.
+
+## Syncing inventory from the game
+
+`wft-sync` is a small client for the gaming PC. It reads the `inventory.json` that [WFHelper](https://github.com/WFHelper/WFHelper) writes, and pushes it to the tracker whenever it changes. **WFHelper must be running**: it's what fetches your inventory (about every 10 minutes). `wft-sync` never touches the game or DE's servers.
+
+What it syncs: resource counts, owned frames and weapons, built components, and owned blueprints (main and part blueprints). The game's report replaces the counts it covers. Counts you typed in by hand for things the game doesn't report are kept.
+
+1. Create a token on the server. It's printed once; only its hash is stored.
+
+   ```sh
+   kubectl -n warframe-tracker exec deploy/warframe-tracker-production-main -- warframe-tracker token create --name gaming-pc
+   ```
+
+2. Download `wft-sync-windows-x86_64.exe` or `wft-sync-linux-x86_64` from the [latest release](https://github.com/graytonio/warframe-tracker/releases/latest), and run it once to check it works:
+
+   ```sh
+   export WFT_URL=https://warframe.graytonward.com WFT_TOKEN=<token>
+   wft-sync --once
+   ```
+
+   It prints `synced N paths: matched=… unmatched=… updated=…`.
+
+| Flag | Env | Default |
+|---|---|---|
+| `--url` | `WFT_URL` | required |
+| `--token` | `WFT_TOKEN` | required. Prefer the env var, so the token stays out of shell history |
+| `--file` | `WFT_FILE` | WFHelper's file: `%APPDATA%\WFHelper\api-helper\inventory.json` on Windows, `~/.config/WFHelper/api-helper/inventory.json` on Linux (`$WFHELPER_USER_DATA` overrides the folder) |
+| `--interval` | `WFT_INTERVAL` | `60` seconds between checks |
+| `--once` | | sync once and exit |
+
+It skips the push when the file hasn't changed, retries on errors (a half-written file, the server restarting), and exits with status 2 if the token is rejected.
+
+**Windows**: run it at logon with Task Scheduler.
+
+```bat
+setx WFT_URL https://warframe.graytonward.com
+setx WFT_TOKEN <token>
+schtasks /create /sc onlogon /tn wft-sync /tr "C:\Tools\wft-sync.exe"
+```
+
+**Linux**: a systemd user service. Put `WFT_TOKEN=<token>` in `~/.config/wft-sync.env` (`chmod 600`), then save this as `~/.config/systemd/user/wft-sync.service` and run `systemctl --user enable --now wft-sync`.
+
+```ini
+[Unit]
+Description=Warframe tracker inventory sync
+After=network-online.target
+
+[Service]
+Environment=WFT_URL=https://warframe.graytonward.com
+EnvironmentFile=%h/.config/wft-sync.env
+ExecStart=%h/.local/bin/wft-sync
+Restart=on-failure
+RestartSec=60
+# 2 = token rejected; restarting won't fix that.
+RestartPreventExitStatus=2
+
+[Install]
+WantedBy=default.target
+```
+
+**Revoke** a token (for example, a lost PC):
+
+```sh
+kubectl -n warframe-tracker exec deploy/warframe-tracker-production-main -- warframe-tracker token revoke --name gaming-pc
+```
 
 ## Develop
 
@@ -39,7 +106,7 @@ Frontend dev loop: run `mise run run` for the API, then `cd web && npm install &
 
 ## Release
 
-Bump `version` in `Cargo.toml`, commit, then `git tag vX.Y.Z && git push --tags`. CI checks that the tag matches `Cargo.toml`, publishes an amd64 image to `ghcr.io/graytonio/warframe-tracker`, and creates a GitHub release.
+Bump `version` in `Cargo.toml`, commit, then `git tag vX.Y.Z && git push --tags`. CI checks that the tag matches `Cargo.toml`, publishes an amd64 image to `ghcr.io/graytonio/warframe-tracker`, creates a GitHub release, and attaches `wft-sync` binaries for Linux and Windows.
 
 ## Deploy
 

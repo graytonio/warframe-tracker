@@ -26,6 +26,19 @@ jobs:
       # Starts postgres via docker compose, then runs cargo test.
       - run: mise run test
 
+  # wft-sync ships for Windows; catch a Windows-only break before a release does.
+  sync-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo build -p wft-sync
+
   web:
     runs-on: ubuntu-latest
     defaults:

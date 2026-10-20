@@ -7,7 +7,8 @@ use sqlx::{PgConnection, PgPool};
 use std::collections::{HashMap, HashSet};
 
 /// Bump whenever `map_modules` output changes, so the next run re-maps even if the wiki didn't change.
-const IMPORT_VERSION: i64 = 4;
+// 3 = part blueprint items (inventory sync), 4 = farm locations; 5 = both combined.
+const IMPORT_VERSION: i64 = 5;
 
 #[derive(Serialize, Default, Debug)]
 pub struct ImportSummary {
@@ -209,10 +210,8 @@ pub async fn map_modules(
                 "Blueprint" => {
                     Some(component(tx, &mut ids, &format!("{item} Blueprint"), item).await?)
                 }
-                p => {
-                    let p = p.strip_suffix(" Blueprint").unwrap_or(p);
-                    Some(component(tx, &mut ids, &format!("{item} {p}"), item).await?)
-                }
+                // "Chassis Blueprint" is the part's own blueprint item; "Barrel" drops built.
+                p => Some(component(tx, &mut ids, &format!("{item} {p}"), item).await?),
             };
             match part_id {
                 Some(pid) => {
@@ -266,6 +265,8 @@ pub async fn map_modules(
     .keys()
     .map(String::as_str)
     .collect();
+    let dt = module("Module:DropTables/data")?;
+    let dropped = dropped_blueprints(dt);
     let mut recipes: HashMap<(i64, i64), i64> = HashMap::new();
     let mut meta: HashMap<i64, (Option<i64>, Option<i64>)> = HashMap::new();
     let mut done: HashSet<&str> = HashSet::new();
@@ -286,7 +287,7 @@ pub async fn map_modules(
         for (key, bp) in ready {
             done.insert(key);
             let r = bp["Result"].as_str().unwrap_or(key);
-            let (rcat, rid) = resolve(&ids, r, RESULT_CATS).unwrap();
+            let (_, rid) = resolve(&ids, r, RESULT_CATS).unwrap();
             for part in bp["Parts"].as_array().into_iter().flatten() {
                 let (Some(name), Some(count)) = (part["Name"].as_str(), part["Count"].as_i64())
                 else {
@@ -300,7 +301,15 @@ pub async fn map_modules(
                         || relic_parts.contains(&comp)
                         || generic.contains(stripped))
                 {
-                    Some(component(tx, &mut ids, &comp, r).await?)
+                    let id = component(tx, &mut ids, &comp, r).await?;
+                    // Parts with no blueprint record of their own that still drop as one
+                    // ("Ambassador Barrel Blueprint"); parts with a record get it below.
+                    let bp = format!("{comp} Blueprint");
+                    if !bps.contains_key(comp.as_str()) && dropped.contains(bp.as_str()) {
+                        let bp_id = component(tx, &mut ids, &bp, r).await?;
+                        recipes.insert((id, bp_id), 1);
+                    }
+                    Some(id)
                 } else if let Some((_, id)) = resolve(&ids, name, part_cats(ty)) {
                     Some(id)
                 } else if ty != "Resource" && bps.contains_key(name) {
@@ -317,10 +326,9 @@ pub async fn map_modules(
                     None => s.unresolved.push(format!("{r}: {name}")),
                 }
             }
-            if rcat != "component" {
-                let bp_id = component(tx, &mut ids, &format!("{r} Blueprint"), r).await?;
-                recipes.insert((rid, bp_id), 1);
-            }
+            // Every result, parts included, needs its blueprint ("Saryn Prime Chassis Blueprint").
+            let bp_id = component(tx, &mut ids, &format!("{r} Blueprint"), r).await?;
+            recipes.insert((rid, bp_id), 1);
             meta.insert(rid, (bp["Credits"].as_i64(), bp["Time"].as_i64()));
         }
     }
@@ -380,7 +388,6 @@ pub async fn map_modules(
             }
         }
     }
-    let dt = module("Module:DropTables/data")?;
     for (alias, rec) in obj(&dt["Missions"], "Missions")? {
         if rec["_IgnoreEntry"].as_bool() == Some(true) {
             continue;
@@ -606,6 +613,29 @@ fn entry(e: &Value) -> Option<(&str, &str, Option<f64>, Option<i32>)> {
     ))
 }
 
+/// Every "... Blueprint" name any mission, enemy or container drops.
+fn dropped_blueprints(dt: &Value) -> HashSet<&str> {
+    let missions = dt["Missions"]
+        .as_object()
+        .into_iter()
+        .flat_map(|m| m.values())
+        .filter_map(|r| r["Rewards"].as_object())
+        .flat_map(|r| r.values());
+    let others = ["Enemies", "Containers"]
+        .iter()
+        .filter_map(|k| dt[*k].as_object())
+        .flat_map(|m| m.values())
+        .flat_map(|r| DROP_LISTS.iter().map(move |l| &r[*l]));
+    missions
+        .chain(others)
+        .filter_map(Value::as_array)
+        .flatten()
+        .filter_map(entry)
+        .filter(|(name, ty, ..)| *ty == "Blueprint" && name.ends_with(" Blueprint"))
+        .map(|(name, ..)| name)
+        .collect()
+}
+
 fn resolve<'a>(ids: &Ids, name: &str, cats: &[&'a str]) -> Option<(&'a str, i64)> {
     cats.iter().find_map(|c| {
         ids.get(&(c.to_string(), name.to_string()))
@@ -635,9 +665,8 @@ fn drop_item(ids: &Ids, name: &str, ty: &str, source: &str, s: &mut ImportSummar
             let n = name.split(" (").next().unwrap_or(name);
             resolve(ids, n.strip_suffix(" Relic").unwrap_or(n), &["relic"])
         }
-        // "Aeolak Blueprint" is a component; "Ash Chassis Blueprint" drops the "Ash Chassis" component.
-        _ => resolve(ids, name, &["component", "weapon", "warframe", "resource"])
-            .or_else(|| resolve(ids, name.strip_suffix(" Blueprint")?, &["component"])),
+        // "Aeolak Blueprint" and "Ash Chassis Blueprint" are both blueprint components.
+        _ => resolve(ids, name, &["component", "weapon", "warframe", "resource"]),
     };
     if found.is_none() {
         s.unresolved.push(format!("{source}: {name} ({ty})"));
@@ -981,13 +1010,63 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(rubedo, 1200);
-        // A component's own blueprint is not a separate ingredient.
+    }
+
+    #[tokio::test]
+    async fn parts_have_their_own_blueprint_item() {
+        let pool = test_pool().await;
+        import(&pool).await;
+        let chassis = id(&pool, "component", "Saryn Prime Chassis").await;
+        let names = ingredients(&pool, chassis).await;
         assert!(
-            !ingredients(&pool, chassis)
+            names.contains(&"Saryn Prime Chassis Blueprint".to_string()),
+            "{names:?}"
+        );
+        // Prime weapon parts drop already built: no blueprint item.
+        let barrel = id(&pool, "component", "Braton Prime Barrel").await;
+        assert!(
+            !ingredients(&pool, barrel)
                 .await
                 .iter()
                 .any(|n| n.ends_with("Blueprint"))
         );
+    }
+
+    #[tokio::test]
+    async fn relics_drop_the_part_blueprint() {
+        let pool = test_pool().await;
+        import(&pool).await;
+        let parts: Vec<String> = sqlx::query_scalar(
+            "SELECT DISTINCT i.wiki_name FROM relic_drops rd JOIN items i ON i.id = rd.part_item_id
+             WHERE i.wiki_name LIKE 'Saryn Prime%' ORDER BY 1",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert!(
+            parts.contains(&"Saryn Prime Neuroptics Blueprint".to_string()),
+            "{parts:?}"
+        );
+        assert!(
+            !parts.contains(&"Saryn Prime Neuroptics".to_string()),
+            "{parts:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn reimport_keeps_part_ids() {
+        let pool = test_pool().await;
+        import(&pool).await;
+        let before = id(&pool, "component", "Saryn Prime Chassis").await;
+        sqlx::query(
+            "INSERT INTO component_progress (user_id, item_id, obtained) VALUES (1, $1, true)",
+        )
+        .bind(before)
+        .execute(&pool)
+        .await
+        .unwrap();
+        import(&pool).await;
+        assert_eq!(id(&pool, "component", "Saryn Prime Chassis").await, before);
     }
 
     #[tokio::test]
@@ -996,7 +1075,7 @@ mod tests {
         import(&pool).await;
         let n: i64 = sqlx::query_scalar(
             "SELECT count(*) FROM relic_drops rd JOIN items i ON i.id=rd.part_item_id
-             WHERE i.wiki_name='Saryn Prime Neuroptics'",
+             WHERE i.wiki_name='Saryn Prime Neuroptics Blueprint'",
         )
         .fetch_one(&pool)
         .await
@@ -1123,7 +1202,8 @@ mod tests {
     }
 
     /// Non-prime weapon parts are generic components ("Barrel" → "Braton Barrel"); enemy
-    /// blueprint drops resolve to them with scaled chance; refined relic names resolve.
+    /// blueprint drops resolve to the part's own blueprint item with scaled chance, even with
+    /// no blueprint record for the part; refined relic names resolve.
     #[tokio::test]
     async fn generic_parts_blueprint_drops_and_refined_relics() {
         let pool = test_pool().await;
@@ -1157,6 +1237,12 @@ mod tests {
             ingredients(&pool, braton).await,
             ["Braton Barrel", "Braton Blueprint", "Rubedo"]
         );
+        // No blueprint record for "Braton Barrel", but it drops as one (real data: Ambassador).
+        let barrel = id(&pool, "component", "Braton Barrel").await;
+        assert_eq!(
+            ingredients(&pool, barrel).await,
+            ["Braton Barrel Blueprint"]
+        );
         let rows: Vec<(String, f64)> = sqlx::query_as(
             "SELECT i.wiki_name, d.chance::float8 FROM drop_sources d JOIN items i ON i.id=d.item_id
              WHERE d.source_kind='enemy' AND i.category='component' ORDER BY 1",
@@ -1167,7 +1253,7 @@ mod tests {
         assert_eq!(
             rows,
             [
-                ("Braton Barrel".into(), 5.0),
+                ("Braton Barrel Blueprint".into(), 5.0),
                 ("Braton Blueprint".into(), 5.0)
             ]
         );

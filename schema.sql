@@ -112,3 +112,17 @@ CREATE TABLE IF NOT EXISTS inventory (
   source text NOT NULL DEFAULT 'manual' CHECK (source IN ('manual','plugin')),
   PRIMARY KEY (user_id, item_id)
 );
+
+-- Only the SHA-256 of a token is stored; the plaintext is printed once by `token create`.
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id bigserial PRIMARY KEY,
+  user_id bigint NOT NULL REFERENCES users(id),
+  name text NOT NULL UNIQUE,
+  token_hash bytea NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_used_at timestamptz,
+  revoked_at timestamptz
+);
+
+-- Sync maps game paths to items by the wiki InternalName.
+CREATE INDEX IF NOT EXISTS items_internal_name ON items ((data->>'InternalName'));
