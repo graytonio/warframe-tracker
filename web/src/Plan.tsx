@@ -3,27 +3,43 @@ import { describeSource, pct, useApi, type Plan } from './api'
 import { Status } from './components'
 
 const PVP_KEY = 'plan.includePvp'
+const VIEW_KEY = 'plan.view'
+type View = 'location' | 'source' | 'need'
+const VIEWS: [View, string][] = [['location', 'Where to go'], ['source', 'What to run'], ['need', 'What I need']]
 
 function loadPvp(): boolean {
   try { return localStorage.getItem(PVP_KEY) === '1' } catch { return false }
 }
 
+function loadView(): View {
+  try {
+    const v = localStorage.getItem(VIEW_KEY)
+    return VIEWS.some(([k]) => k === v) ? (v as View) : 'location'
+  } catch { return 'location' }
+}
+
 export default function PlanPage() {
   const [includePvp, setIncludePvp] = useState(loadPvp)
   const { data, error } = useApi<Plan>(`/plan?include_pvp=${includePvp}`)
-  const [view, setView] = useState<'source' | 'need'>('source')
+  const [view, setViewState] = useState<View>(loadView)
 
   function togglePvp(on: boolean) {
     setIncludePvp(on)
     try { localStorage.setItem(PVP_KEY, on ? '1' : '0') } catch { /* private mode: not remembered */ }
   }
 
+  function setView(v: View) {
+    setViewState(v)
+    try { localStorage.setItem(VIEW_KEY, v) } catch { /* private mode: not remembered */ }
+  }
+
   return (
     <>
       <h1>Farm plan</h1>
       <div className="toggle" role="group" aria-label="Plan view">
-        <button type="button" aria-pressed={view === 'source'} onClick={() => setView('source')}>What to run</button>
-        <button type="button" aria-pressed={view === 'need'} onClick={() => setView('need')}>What I need</button>
+        {VIEWS.map(([v, label]) => (
+          <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>{label}</button>
+        ))}
       </div>
       <label className="inline">
         <input type="checkbox" checked={includePvp} onChange={e => togglePvp(e.target.checked)} />
@@ -32,6 +48,25 @@ export default function PlanPage() {
       <Status error={error} loading={!data} />
       {data && data.by_need.length === 0 && data.unsourced.length === 0 && (
         <p className="muted">Nothing to farm. Add items to your wishlist.</p>
+      )}
+
+      {data && view === 'location' && data.by_need.length > 0 && data.by_location.length === 0 && (
+        <p className="muted">No structured locations for your needs yet — see What I need.</p>
+      )}
+      {data && view === 'location' && (
+        <ul className="rows">
+          {data.by_location.map(g => (
+            <li key={g.place}>
+              <div className="row-head">
+                <h3 className="grow">{g.place}</h3>
+              </div>
+              <ul className="chips" aria-label="Covers">
+                {g.covers.map(c => <li key={c.item_id}>{c.name} — {c.via.join(', ')}</li>)}
+              </ul>
+              {g.nodes.length > 0 && <p className="muted">e.g. {g.nodes.join(', ')}</p>}
+            </li>
+          ))}
+        </ul>
       )}
 
       {data && view === 'source' && (
@@ -64,6 +99,7 @@ export default function PlanPage() {
                 <span className="nowrap">{n.have} / {n.needed}</span>
               </div>
               <p className="muted">For: {n.for.map(f => f.name).join(', ')}</p>
+              {n.location_hint && <p className="muted">Wiki says: {n.location_hint}</p>}
               <ul className="sources">
                 {n.sources.map((s, i) => <li key={i}><span className="badge">{s.kind}</span> {describeSource(s)}</li>)}
               </ul>
