@@ -12,6 +12,7 @@ run = "docker compose up -d --wait db"
 [tasks.run]
 description = "Run the server natively (against the docker db)"
 depends = ["db"]
+env = { PUBLIC_URL = "http://localhost:3000", DEV_LOGIN = "1" }
 run = "cargo run -- serve"
 
 [tasks.import]

@@ -12,6 +12,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{AssertSqlSafe, PgExecutor, Row};
 
+const MAX_WISHLIST: i64 = 300;
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/wishlist", get(wishlist).post(wishlist_add))
@@ -57,7 +59,7 @@ async fn wishlist(
     let mut out = Vec::with_capacity(rows.len());
     // ponytail: one load_tree per entry; batch it if wishlists get long.
     for (item_id, added_at, completed_at) in rows {
-        if let Some(tree) = load_tree(&st.pool, user, item_id).await? {
+        if let Some(tree) = load_tree(&st.pool, Some(user), item_id).await? {
             out.push(WishlistEntry {
                 item: tree.item.clone(),
                 added_at,
@@ -80,6 +82,17 @@ async fn wishlist_add(
     CurrentUser(user): CurrentUser,
     Json(b): Json<WishlistAdd>,
 ) -> ApiResult<StatusCode> {
+    let others: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM wishlist WHERE user_id = $1 AND item_id <> $2")
+            .bind(user)
+            .bind(b.item_id)
+            .fetch_one(&st.pool)
+            .await?;
+    if others >= MAX_WISHLIST {
+        return Err(ApiError::BadRequest(format!(
+            "at most {MAX_WISHLIST} wishlist items"
+        )));
+    }
     // The no-op update makes a repeat add count as one row, keeping it idempotent.
     let r = sqlx::query(
         "INSERT INTO wishlist (user_id, item_id)
@@ -265,42 +278,10 @@ async fn inventory_patch(
 
 #[cfg(test)]
 mod tests {
-    use crate::{AppState, app, db::test_pool};
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
-    use http_body_util::BodyExt;
-    use serde_json::{Value, json};
-    use tower::ServiceExt;
-
-    async fn call(
-        pool: &sqlx::PgPool,
-        method: &str,
-        uri: &str,
-        body: Option<Value>,
-    ) -> (StatusCode, Value) {
-        let mut req = Request::builder().method(method).uri(uri);
-        let body = match body {
-            Some(b) => {
-                req = req.header("content-type", "application/json");
-                Body::from(b.to_string())
-            }
-            None => Body::empty(),
-        };
-        let res = app(AppState { pool: pool.clone() }, "web/dist")
-            .oneshot(req.body(body).unwrap())
-            .await
-            .unwrap();
-        let status = res.status();
-        let bytes = res.into_body().collect().await.unwrap().to_bytes();
-        let v = if bytes.is_empty() {
-            Value::Null
-        } else {
-            serde_json::from_slice(&bytes).unwrap()
-        };
-        (status, v)
-    }
+    use crate::api::test_support::{Auth, call, login, request, send};
+    use crate::db::test_pool;
+    use axum::{body::Body, http::StatusCode};
+    use serde_json::json;
 
     async fn seed(pool: &sqlx::PgPool) {
         sqlx::raw_sql(
@@ -318,11 +299,20 @@ mod tests {
     #[tokio::test]
     async fn wishlist_add_list_complete_delete() {
         let pool = test_pool().await;
+        let c = login(&pool, 1).await;
         seed(&pool).await;
-        let add = || call(&pool, "POST", "/api/wishlist", Some(json!({"item_id": 1})));
+        let add = || {
+            call(
+                &pool,
+                Auth::Session(&c),
+                "POST",
+                "/api/wishlist",
+                Some(json!({"item_id": 1})),
+            )
+        };
         assert_eq!(add().await.0, StatusCode::NO_CONTENT);
         assert_eq!(add().await.0, StatusCode::NO_CONTENT);
-        let (s, v) = call(&pool, "GET", "/api/wishlist", None).await;
+        let (s, v) = call(&pool, Auth::Session(&c), "GET", "/api/wishlist", None).await;
         assert_eq!(s, StatusCode::OK);
         assert_eq!(v.as_array().unwrap().len(), 1);
         assert_eq!(v[0]["item"]["name"], "Saryn Prime");
@@ -332,29 +322,42 @@ mod tests {
         assert_eq!(v[0]["progress_pct"], 0.0);
         let put = call(
             &pool,
+            Auth::Session(&c),
             "PUT",
             "/api/progress/2",
             Some(json!({"obtained": true})),
         )
         .await;
         assert_eq!(put.0, StatusCode::NO_CONTENT);
-        let v = call(&pool, "GET", "/api/wishlist", None).await.1;
+        let v = call(&pool, Auth::Session(&c), "GET", "/api/wishlist", None)
+            .await
+            .1;
         assert_eq!(v[0]["progress_pct"], 100.0);
         let patch = call(
             &pool,
+            Auth::Session(&c),
             "PATCH",
             "/api/wishlist/1",
             Some(json!({"completed": true})),
         )
         .await;
         assert_eq!(patch.0, StatusCode::NO_CONTENT);
-        let v = call(&pool, "GET", "/api/wishlist", None).await.1;
+        let v = call(&pool, Auth::Session(&c), "GET", "/api/wishlist", None)
+            .await
+            .1;
         assert!(v[0]["completed_at"].is_string());
-        let del = call(&pool, "DELETE", "/api/wishlist/1", None).await;
+        let del = call(&pool, Auth::Session(&c), "DELETE", "/api/wishlist/1", None).await;
         assert_eq!(del.0, StatusCode::NO_CONTENT);
-        assert_eq!(call(&pool, "GET", "/api/wishlist", None).await.1, json!([]));
         assert_eq!(
-            call(&pool, "DELETE", "/api/wishlist/1", None).await.0,
+            call(&pool, Auth::Session(&c), "GET", "/api/wishlist", None)
+                .await
+                .1,
+            json!([])
+        );
+        assert_eq!(
+            call(&pool, Auth::Session(&c), "DELETE", "/api/wishlist/1", None)
+                .await
+                .0,
             StatusCode::NOT_FOUND
         );
     }
@@ -362,6 +365,7 @@ mod tests {
     #[tokio::test]
     async fn unknown_or_removed_item_writes_are_404() {
         let pool = test_pool().await;
+        let c = login(&pool, 1).await;
         sqlx::raw_sql(
             "INSERT INTO items (id, wiki_name, category, removed_at) VALUES (5,'Gone','resource',now())",
         )
@@ -388,7 +392,7 @@ mod tests {
                     json!([{"item_id": id, "count": 1}]),
                 ),
             ] {
-                let (s, v) = call(&pool, m, &u, Some(b)).await;
+                let (s, v) = call(&pool, Auth::Session(&c), m, &u, Some(b)).await;
                 assert_eq!(s, StatusCode::NOT_FOUND, "{m} {u}");
                 assert_eq!(v["error"], "not found");
             }
@@ -398,20 +402,14 @@ mod tests {
     #[tokio::test]
     async fn inventory_bulk_put_and_negative_rejected() {
         let pool = test_pool().await;
+        let c = login(&pool, 1).await;
         seed(&pool).await;
-        let req = Request::builder()
-            .method("PUT")
-            .uri("/api/inventory")
-            .header("content-type", "application/json")
+        let req = request(Auth::Session(&c), "PUT", "/api/inventory", true)
             .header("x-inventory-source", "plugin")
             .body(Body::from(r#"[{"item_id":3,"count":500}]"#))
             .unwrap();
-        let res = app(AppState { pool: pool.clone() }, "web/dist")
-            .oneshot(req)
-            .await
-            .unwrap();
-        assert_eq!(res.status(), StatusCode::NO_CONTENT);
-        let (_, v) = call(&pool, "GET", "/api/inventory", None).await;
+        assert_eq!(send(&pool, req).await.0, StatusCode::NO_CONTENT);
+        let (_, v) = call(&pool, Auth::Session(&c), "GET", "/api/inventory", None).await;
         assert_eq!(v[0]["item"]["name"], "Rubedo");
         assert_eq!(v[0]["count"], 500);
         assert_eq!(v[0]["source"], "plugin");
@@ -419,18 +417,20 @@ mod tests {
 
         let (s, _) = call(
             &pool,
+            Auth::Session(&c),
             "PATCH",
             "/api/inventory/3",
             Some(json!({"count": 7})),
         )
         .await;
         assert_eq!(s, StatusCode::NO_CONTENT);
-        let (_, v) = call(&pool, "GET", "/api/inventory", None).await;
+        let (_, v) = call(&pool, Auth::Session(&c), "GET", "/api/inventory", None).await;
         assert_eq!(v[0]["count"], 7);
         assert_eq!(v[0]["source"], "manual");
 
         let (s, v) = call(
             &pool,
+            Auth::Session(&c),
             "PATCH",
             "/api/inventory/3",
             Some(json!({"count": -1})),
@@ -439,10 +439,19 @@ mod tests {
         assert_eq!(s, StatusCode::BAD_REQUEST);
         assert_eq!(v["error"], "count must be >= 0");
         let bulk = json!([{"item_id": 3, "count": 1}, {"item_id": 2, "count": -1}]);
-        let (s, _) = call(&pool, "PUT", "/api/inventory", Some(bulk)).await;
+        let (s, _) = call(
+            &pool,
+            Auth::Session(&c),
+            "PUT",
+            "/api/inventory",
+            Some(bulk),
+        )
+        .await;
         assert_eq!(s, StatusCode::BAD_REQUEST);
         assert_eq!(
-            call(&pool, "GET", "/api/inventory", None).await.1[0]["count"],
+            call(&pool, Auth::Session(&c), "GET", "/api/inventory", None)
+                .await
+                .1[0]["count"],
             7
         );
     }
@@ -450,16 +459,18 @@ mod tests {
     #[tokio::test]
     async fn inventory_patch_creates_missing_row() {
         let pool = test_pool().await;
+        let c = login(&pool, 1).await;
         seed(&pool).await;
         let (s, _) = call(
             &pool,
+            Auth::Session(&c),
             "PATCH",
             "/api/inventory/3",
             Some(json!({"count": 0})),
         )
         .await;
         assert_eq!(s, StatusCode::NO_CONTENT);
-        let (_, v) = call(&pool, "GET", "/api/inventory", None).await;
+        let (_, v) = call(&pool, Auth::Session(&c), "GET", "/api/inventory", None).await;
         assert_eq!(v.as_array().unwrap().len(), 1);
         assert_eq!(v[0]["item"]["id"], 3);
         assert_eq!(v[0]["count"], 0);

@@ -32,9 +32,10 @@ const MAX_DEPTH: usize = 8;
 
 type NodeData = (ItemSummary, bool, i64);
 
+/// `user_id: None` (anonymous) matches no progress or inventory rows: nothing is had.
 pub async fn load_tree(
     pool: &PgPool,
-    user_id: i64,
+    user_id: Option<i64>,
     root: i64,
 ) -> sqlx::Result<Option<ProgressNode>> {
     let sql = format!(
@@ -135,7 +136,7 @@ mod tests {
     async fn builds_tree_with_multiplied_counts() {
         let pool = test_pool().await;
         let root = seed(&pool).await;
-        let t = load_tree(&pool, 1, root).await.unwrap().unwrap();
+        let t = load_tree(&pool, Some(1), root).await.unwrap().unwrap();
         assert_eq!(t.children.len(), 3);
         let chassis = t
             .children
@@ -157,7 +158,7 @@ mod tests {
         .execute(&pool)
         .await
         .unwrap();
-        let t = load_tree(&pool, 1, root).await.unwrap().unwrap();
+        let t = load_tree(&pool, Some(1), root).await.unwrap().unwrap();
         let by = |n: &str| t.children.iter().find(|c| c.item.name == n).unwrap();
         assert!(by("Saryn Prime Chassis").covered && by("Saryn Prime Chassis").obtained);
         assert!(by("Orokin Cell").covered);
@@ -168,6 +169,6 @@ mod tests {
     #[tokio::test]
     async fn unknown_root_is_none() {
         let pool = test_pool().await;
-        assert!(load_tree(&pool, 1, 999).await.unwrap().is_none());
+        assert!(load_tree(&pool, Some(1), 999).await.unwrap().is_none());
     }
 }

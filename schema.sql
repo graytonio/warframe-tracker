@@ -126,3 +126,35 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 
 -- Sync maps game paths to items by the wiki InternalName.
 CREATE INDEX IF NOT EXISTS items_internal_name ON items ((data->>'InternalName'));
+
+-- Discord sign-in. user 1 keeps discord_id NULL until the owner's first login claims it.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_id text UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at timestamptz;
+
+-- Only the SHA-256 of the session cookie is stored, as with api_tokens.
+CREATE TABLE IF NOT EXISTS sessions (
+  id bigserial PRIMARY KEY,
+  user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash bytea NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL
+);
+
+-- Token names are per user, among live tokens (a revoked name can be reused).
+ALTER TABLE api_tokens DROP CONSTRAINT IF EXISTS api_tokens_name_key;
+CREATE UNIQUE INDEX IF NOT EXISTS api_tokens_user_name ON api_tokens (user_id, name)
+  WHERE revoked_at IS NULL;
+
+-- ON DELETE CASCADE for user-owned tables, so deleting a user deletes their data.
+-- ponytail: drop-and-re-add on every boot; guard on pg_constraint.confdeltype if boot time matters.
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['wishlist','component_progress','inventory','api_tokens'] LOOP
+    EXECUTE format('ALTER TABLE %I DROP CONSTRAINT IF EXISTS %I', t, t || '_user_id_fkey');
+    EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE', t, t || '_user_id_fkey');
+  END LOOP;
+END $$;

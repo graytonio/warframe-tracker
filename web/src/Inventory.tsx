@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { send, useApi, type InventoryRow } from './api'
-import { ItemSearch, Status } from './components'
-import { CountInput } from './Wishlist'
+import { CountInput, ItemSearch, Status } from './components'
 
 export default function Inventory() {
   const { data, error, reload } = useApi<InventoryRow[]>('/inventory')

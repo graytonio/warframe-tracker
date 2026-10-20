@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::api::{ApiError, ApiResult, CurrentUser};
+use crate::api::{ApiError, ApiResult, OptionalUser};
 use crate::models::{ITEM_COLS, ItemSummary, item_from_row};
 use crate::tree::{ProgressNode, load_tree};
 use axum::{
@@ -55,7 +55,7 @@ struct Detail {
 
 async fn detail(
     State(st): State<AppState>,
-    CurrentUser(user): CurrentUser,
+    OptionalUser(user): OptionalUser,
     Path(id): Path<i64>,
 ) -> ApiResult<Json<Detail>> {
     let tree = load_tree(&st.pool, user, id)
@@ -179,24 +179,14 @@ async fn meta(State(st): State<AppState>) -> ApiResult<Json<Meta>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AppState, app, db::test_pool};
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
-    use http_body_util::BodyExt;
+    use crate::api::test_support::{self, Auth};
+    use crate::db::test_pool;
+    use axum::http::StatusCode;
     use serde_json::{Value, json};
-    use tower::ServiceExt;
 
+    /// The catalog is public: every test here runs signed out.
     async fn call(pool: &sqlx::PgPool, uri: &str) -> (StatusCode, Value) {
-        let req = Request::builder().uri(uri).body(Body::empty()).unwrap();
-        let res = app(AppState { pool: pool.clone() }, "web/dist")
-            .oneshot(req)
-            .await
-            .unwrap();
-        let status = res.status();
-        let bytes = res.into_body().collect().await.unwrap().to_bytes();
-        (status, serde_json::from_slice(&bytes).unwrap())
+        test_support::call(pool, Auth::None, "GET", uri, None).await
     }
 
     /// Saryn Prime ← Chassis ← Rubedo ×1200. Chassis drops from relic Axi S1 (vaulted),

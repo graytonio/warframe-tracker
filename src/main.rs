@@ -1,5 +1,5 @@
 use anyhow::Context;
-use warframe_tracker::{AppState, app, db, import, lua, tokens, wiki};
+use warframe_tracker::{AppState, app, config::Config, db, import, lua, tokens, wiki};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -13,13 +13,17 @@ async fn main() -> anyhow::Result<()> {
     let url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     match cmd.as_str() {
         "serve" => {
+            let config = Config::from_env()?;
+            if config.dev_login {
+                println!("DEV_LOGIN enabled: /auth/dev-login signs in as anyone");
+            }
             let pool = db::connect_with_retry(&url).await;
             db::migrate(&pool).await?;
             let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "web/dist".into());
             let port = std::env::var("PORT").unwrap_or_else(|_| "3000".into());
             let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
             println!("listening on :{port}");
-            axum::serve(listener, app(AppState { pool }, &web_dir)).await?;
+            axum::serve(listener, app(AppState::new(pool, config), &web_dir)).await?;
         }
         "import" => {
             let pool = db::connect_with_retry(&url).await;
@@ -37,13 +41,13 @@ async fn main() -> anyhow::Result<()> {
             let name = flag("--name").context("--name is required")?;
             let pool = db::connect_with_retry(&url).await;
             db::migrate(&pool).await?;
+            let user = flag("--user").map_or(Ok(1), |u| u.parse())?;
             match args.first().map(String::as_str) {
                 Some("create") => {
-                    let user = flag("--user").map_or(Ok(1), |u| u.parse())?;
                     println!("{}", tokens::create(&pool, user, &name).await?);
                 }
                 Some("revoke") => {
-                    if !tokens::revoke(&pool, &name).await? {
+                    if !tokens::revoke(&pool, user, &name).await? {
                         eprintln!("no live token named {name}");
                         std::process::exit(1);
                     }
