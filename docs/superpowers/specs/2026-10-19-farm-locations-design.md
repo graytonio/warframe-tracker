@@ -1,7 +1,7 @@
 # Farm Locations — Design
 
 Date: 2026-10-19
-Status: Draft, awaiting review
+Status: Approved 2026-10-19
 Builds on: `2026-10-19-warframe-tracker-design.md`
 
 ## Goal
@@ -245,14 +245,14 @@ Plan page:
   resource shows `Cambion Drift`. Re-measure the coverage numbers above
   and record them in the PR.
 
-## Open questions
+## Decisions
 
-1. Should "Where to go" also group by **open world** (Cetus/Plains,
-   Fortuna/Orb Vallis, Necralisk/Cambion Drift, Zariman, Duviri) when the
-   wiki gives that as the `Link` place? The proposal treats it like a
-   planet; places come from the data as-is.
-2. Should the default view stay "What to run" until you've seen "Where to
-   go" on real data? The proposal makes "Where to go" the default.
+1. Open worlds (Plains of Eidolon, Orb Vallis, Cambion Drift, Zariman,
+   Duviri, …) are grouped as places alongside planets whenever the wiki
+   gives them as a `Link` place or an enemy `Planets` value. *(Approved
+   2026-10-19.)*
+2. "Where to go" is the default Plan view from the first release.
+   *(Approved 2026-10-19.)*
 
 ## Future work
 
