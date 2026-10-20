@@ -64,26 +64,32 @@ export default function Wishlist() {
       {data?.length === 0 && <p className="muted">Your wishlist is empty. Search above to add something.</p>}
       <ul className="entries">
         {data?.map(w => {
-          const done = w.completed_at != null
+          const isMod = w.item.category === 'mod'
           return (
-            <li key={w.item.id} className={done ? 'entry done' : 'entry'}>
-              <details>
-                <summary>
+            <li key={w.item.id} className="entry">
+              {isMod ? (
+                <div className="node">
                   <span className="grow">{w.item.name}</span>
-                  <progress max={100} value={w.progress_pct} aria-label={`${w.item.name} progress`} />
-                  <span className="nowrap">{Math.round(w.progress_pct)}%</span>
-                </summary>
-                {w.tree.children.length > 0
-                  ? <ul className="tree">{w.tree.children.map((c, i) => <Tree key={`${c.item.id}-${i}`} node={c} reload={reload} onError={setActionError} />)}</ul>
-                  : <p className="muted">No recipe on the wiki.</p>}
-              </details>
+                  <span className="nowrap">
+                    <CountInput itemId={w.item.id} value={w.tree.have} label={`${w.item.name} count`} onSaved={reload} onError={setActionError} />
+                    {' / '}1
+                  </span>
+                </div>
+              ) : (
+                <details>
+                  <summary>
+                    <span className="grow">{w.item.name}</span>
+                    <progress max={100} value={w.progress_pct} aria-label={`${w.item.name} progress`} />
+                    <span className="nowrap">{Math.round(w.progress_pct)}%</span>
+                  </summary>
+                  {w.tree.children.length > 0
+                    ? <ul className="tree">{w.tree.children.map((c, i) => <Tree key={`${c.item.id}-${i}`} node={c} reload={reload} onError={setActionError} />)}</ul>
+                    : <p className="muted">No recipe on the wiki.</p>}
+                </details>
+              )}
               <div className="actions">
-                <button type="button" aria-pressed={done}
-                  onClick={() => act(send('PATCH', `/wishlist/${w.item.id}`, { completed: !done }))}>
-                  {done ? 'Done ✓' : 'Mark done'}
-                </button>
-                <button type="button" className="danger" aria-label={`Remove ${w.item.name}`}
-                  onClick={() => act(send('DELETE', `/wishlist/${w.item.id}`))}>Remove</button>
+                <button type="button" aria-label={`Mark ${w.item.name} done`}
+                  onClick={() => act(send('DELETE', `/wishlist/${w.item.id}`))}>Done</button>
               </div>
             </li>
           )
