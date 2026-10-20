@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { send, useApi, type ProgressNode, type WishlistEntry } from './api'
+import { describeSource, api, send, useApi, type ProgressNode, type Source, type WishlistEntry } from './api'
 import { ItemSearch, Status } from './components'
 
 export function CountInput({ itemId, value, label, onSaved, onError }: {
@@ -16,6 +16,29 @@ export function CountInput({ itemId, value, label, onSaved, onError }: {
         if (n !== value) send('PATCH', `/inventory/${itemId}`, { count: n }).then(onSaved, err => onError(err.message))
       }}
     />
+  )
+}
+
+/** Where an item drops, fetched when the dropdown is first opened. */
+function Sources({ itemId }: { itemId: number }) {
+  const [sources, setSources] = useState<Source[]>()
+  const [error, setError] = useState<string>()
+  return (
+    <details className="source-list" onToggle={e => {
+      if (e.currentTarget.open && !sources) {
+        api<{ sources: Source[] }>(`/items/${itemId}`).then(d => setSources(d.sources), err => setError(err.message))
+      }
+    }}>
+      <summary>Where to get</summary>
+      {error && <p className="error" role="alert">{error}</p>}
+      {!sources && !error && <p className="muted">Loading…</p>}
+      {sources?.length === 0 && <p className="muted">No farmable source on wiki.</p>}
+      {sources && sources.length > 0 && (
+        <ul className="sources">
+          {sources.map((s, i) => <li key={i}><span className="badge">{s.kind}</span> {describeSource(s)}</li>)}
+        </ul>
+      )}
+    </details>
   )
 }
 
@@ -43,6 +66,7 @@ function Tree({ node, reload, onError }: { node: ProgressNode; reload: () => voi
           </label>
         )}
       </div>
+      {node.children.length === 0 && !node.covered && <Sources itemId={item.id} />}
       {node.children.length > 0 && (
         <ul>{node.children.map((c, i) => <Tree key={`${c.item.id}-${i}`} node={c} reload={reload} onError={onError} />)}</ul>
       )}
@@ -74,6 +98,7 @@ export default function Wishlist() {
                     <CountInput itemId={w.item.id} value={w.tree.have} label={`${w.item.name} count`} onSaved={reload} onError={setActionError} />
                     {' / '}1
                   </span>
+                  {!w.tree.covered && <Sources itemId={w.item.id} />}
                 </div>
               ) : (
                 <details>

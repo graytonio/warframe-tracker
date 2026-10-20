@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { describeSource, pct, useApi, type Plan } from './api'
+import { pct, useApi, type Plan } from './api'
 import { Status } from './components'
 
 const PVP_KEY = 'plan.includePvp'
 const VIEW_KEY = 'plan.view'
-type View = 'location' | 'source' | 'need'
-const VIEWS: [View, string][] = [['location', 'Where to go'], ['source', 'What to run'], ['need', 'What I need']]
+type View = 'location' | 'source'
+const VIEWS: [View, string][] = [['location', 'Where to go'], ['source', 'What to run']]
 
 function loadPvp(): boolean {
   try { return localStorage.getItem(PVP_KEY) === '1' } catch { return false }
@@ -51,7 +51,7 @@ export default function PlanPage() {
       )}
 
       {data && view === 'location' && data.by_need.length > 0 && data.by_location.length === 0 && (
-        <p className="muted">No structured locations for your needs yet — see What I need.</p>
+        <p className="muted">No structured locations for your needs yet.</p>
       )}
       {data && view === 'location' && (
         <ul className="rows">
@@ -106,24 +106,6 @@ export default function PlanPage() {
                 {g.covers.map(c => (
                   <li key={c.item_id}>{c.name}{c.via && ` via ${c.via}`}{c.chance != null && ` (${pct(c.chance)})`}</li>
                 ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {data && view === 'need' && (
-        <ul className="rows">
-          {data.by_need.map(n => (
-            <li key={n.item.id}>
-              <div className="row-head">
-                <strong className="grow">{n.item.name}</strong>
-                <span className="nowrap">{n.have} / {n.needed}</span>
-              </div>
-              <p className="muted">For: {n.for.map(f => f.name).join(', ')}</p>
-              {n.location_hint && <p className="muted">Wiki says: {n.location_hint}</p>}
-              <ul className="sources">
-                {n.sources.map((s, i) => <li key={i}><span className="badge">{s.kind}</span> {describeSource(s)}</li>)}
               </ul>
             </li>
           ))}

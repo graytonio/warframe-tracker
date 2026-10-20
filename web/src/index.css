@@ -89,6 +89,8 @@ footer { margin: 2rem 0 1rem; padding-top: .75rem; border-top: 1px solid var(--b
 .chips li { font-size: .85rem; padding: .1rem .5rem; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); }
 .sources { margin-top: .4rem; font-size: .9rem; }
 .sources li { padding: .1rem 0; }
+.tree .sources, .entry .sources { padding-left: 1.25rem; border-left: 0; margin-left: 0; }
+.source-list { margin: .1rem 0 .3rem 1.25rem; font-size: .9rem; }
 
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
