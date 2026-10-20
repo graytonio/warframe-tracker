@@ -4,6 +4,7 @@ pub mod import;
 pub mod lua;
 pub mod models;
 pub mod plan;
+pub mod tokens;
 pub mod tree;
 pub mod wiki;
 
