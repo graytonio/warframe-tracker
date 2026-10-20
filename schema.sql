@@ -110,3 +110,6 @@ CREATE TABLE IF NOT EXISTS api_tokens (
   last_used_at timestamptz,
   revoked_at timestamptz
 );
+
+-- Sync maps game paths to items by the wiki InternalName.
+CREATE INDEX IF NOT EXISTS items_internal_name ON items ((data->>'InternalName'));

@@ -1,4 +1,5 @@
 pub mod catalog;
+pub mod sync;
 pub mod user;
 
 use crate::AppState;
@@ -14,6 +15,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .merge(catalog::routes())
         .merge(user::routes())
+        .merge(sync::routes())
         .merge(crate::plan::routes())
         // Unknown /api paths must not fall through to the SPA's index.html.
         .fallback(|| async { ApiError::NotFound })
