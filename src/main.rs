@@ -41,13 +41,13 @@ async fn main() -> anyhow::Result<()> {
             let name = flag("--name").context("--name is required")?;
             let pool = db::connect_with_retry(&url).await;
             db::migrate(&pool).await?;
+            let user = flag("--user").map_or(Ok(1), |u| u.parse())?;
             match args.first().map(String::as_str) {
                 Some("create") => {
-                    let user = flag("--user").map_or(Ok(1), |u| u.parse())?;
                     println!("{}", tokens::create(&pool, user, &name).await?);
                 }
                 Some("revoke") => {
-                    if !tokens::revoke(&pool, &name).await? {
+                    if !tokens::revoke(&pool, user, &name).await? {
                         eprintln!("no live token named {name}");
                         std::process::exit(1);
                     }

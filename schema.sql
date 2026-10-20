@@ -143,9 +143,10 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at timestamptz NOT NULL
 );
 
--- Token names are per user.
+-- Token names are per user, among live tokens (a revoked name can be reused).
 ALTER TABLE api_tokens DROP CONSTRAINT IF EXISTS api_tokens_name_key;
-CREATE UNIQUE INDEX IF NOT EXISTS api_tokens_user_name ON api_tokens (user_id, name);
+CREATE UNIQUE INDEX IF NOT EXISTS api_tokens_user_name ON api_tokens (user_id, name)
+  WHERE revoked_at IS NULL;
 
 -- ON DELETE CASCADE for user-owned tables, so deleting a user deletes their data.
 -- ponytail: drop-and-re-add on every boot; guard on pg_constraint.confdeltype if boot time matters.

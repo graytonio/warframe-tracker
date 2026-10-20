@@ -12,6 +12,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{AssertSqlSafe, PgExecutor, Row};
 
+const MAX_WISHLIST: i64 = 300;
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/wishlist", get(wishlist).post(wishlist_add))
@@ -80,6 +82,17 @@ async fn wishlist_add(
     CurrentUser(user): CurrentUser,
     Json(b): Json<WishlistAdd>,
 ) -> ApiResult<StatusCode> {
+    let others: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM wishlist WHERE user_id = $1 AND item_id <> $2")
+            .bind(user)
+            .bind(b.item_id)
+            .fetch_one(&st.pool)
+            .await?;
+    if others >= MAX_WISHLIST {
+        return Err(ApiError::BadRequest(format!(
+            "at most {MAX_WISHLIST} wishlist items"
+        )));
+    }
     // The no-op update makes a repeat add count as one row, keeping it idempotent.
     let r = sqlx::query(
         "INSERT INTO wishlist (user_id, item_id)

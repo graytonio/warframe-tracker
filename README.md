@@ -9,10 +9,12 @@ One Rust server binary with these subcommands, plus the `wft-sync` client (see [
 | `warframe-tracker serve` | API + the React UI on port 3000 (default) |
 | `warframe-tracker import` | Fetch changed wiki modules and upsert game data. Unchanged revisions are skipped, and user data is never touched |
 | `warframe-tracker token create --name N [--user ID]` | Print a new API token for `wft-sync` (only its hash is stored) |
-| `warframe-tracker token revoke --name N` | Revoke a token (exit 1 if there's no such token) |
+| `warframe-tracker token revoke --name N [--user ID]` | Revoke a token (exit 1 if there's no such token). `--user` defaults to 1 |
 | `warframe-tracker dump <dir>` | Dev tool: write every evaluated module as JSON |
 
 Config: `DATABASE_URL` (required) and `WEB_DIR` (static UI dir, default `web/dist`). The schema is applied on startup.
+
+`serve` also needs `PUBLIC_URL` (e.g. `https://warframe.graytonward.com`) plus `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` for "Sign in with Discord" (redirect URI `{PUBLIC_URL}/auth/discord/callback`). `OWNER_DISCORD_ID` is the Discord user whose first sign-in claims the pre-auth data (user 1). For local development, `PUBLIC_URL=http://localhost:3000 DEV_LOGIN=1` replaces Discord with `/auth/dev-login?as=<name>`.
 
 ## Run it
 
@@ -29,7 +31,7 @@ The UI shows a banner until the first import has run.
 
 What it syncs: resource counts, owned frames and weapons, built components, and owned blueprints (main and part blueprints). The game's report replaces the counts it covers. Counts you typed in by hand for things the game doesn't report are kept.
 
-1. Create a token on the server. It's printed once; only its hash is stored.
+1. Create a token under **Settings** in the web app (or, as an admin, on the server). It's shown once; only its hash is stored.
 
    ```sh
    kubectl -n warframe-tracker exec deploy/warframe-tracker-production-main -- warframe-tracker token create --name gaming-pc

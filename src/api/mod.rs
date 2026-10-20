@@ -1,4 +1,5 @@
 pub mod catalog;
+pub mod me;
 pub mod sync;
 pub mod user;
 
@@ -16,6 +17,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .merge(catalog::routes())
         .merge(user::routes())
+        .merge(me::routes())
         .merge(sync::routes())
         .merge(crate::plan::routes())
         // Unknown /api paths must not fall through to the SPA's index.html.
@@ -78,21 +80,42 @@ fn invalid_token() -> ApiError {
     ApiError::Unauthorized("invalid token".into())
 }
 
+/// `CurrentUser`'s rules; also says whether the user came from a session.
+async fn current(parts: &Parts, st: &AppState) -> ApiResult<(i64, bool)> {
+    let (user, via_session) = resolve(parts, st)
+        .await?
+        .ok_or_else(|| ApiError::Unauthorized("sign in required".into()))?;
+    let read = parts.method == Method::GET || parts.method == Method::HEAD;
+    let same_origin = parts
+        .headers
+        .get(header::ORIGIN)
+        .is_some_and(|o| o.as_bytes() == st.config.origin().as_bytes());
+    if via_session && !read && !same_origin {
+        return Err(ApiError::Forbidden("cross-site request".into()));
+    }
+    Ok((user, via_session))
+}
+
 impl FromRequestParts<AppState> for CurrentUser {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, st: &AppState) -> ApiResult<Self> {
-        let (user, via_session) = resolve(parts, st)
-            .await?
-            .ok_or_else(|| ApiError::Unauthorized("sign in required".into()))?;
-        let read = parts.method == Method::GET || parts.method == Method::HEAD;
-        let same_origin = parts
-            .headers
-            .get(header::ORIGIN)
-            .is_some_and(|o| o.as_bytes() == st.config.origin().as_bytes());
-        if via_session && !read && !same_origin {
-            return Err(ApiError::Forbidden("cross-site request".into()));
+        Ok(CurrentUser(current(parts, st).await?.0))
+    }
+}
+
+/// Like `CurrentUser`, but a bearer token isn't enough: for managing tokens and the
+/// account, so a leaked sync token can't mint more tokens or delete the account.
+pub struct SessionUser(pub i64);
+
+impl FromRequestParts<AppState> for SessionUser {
+    type Rejection = ApiError;
+    async fn from_request_parts(parts: &mut Parts, st: &AppState) -> ApiResult<Self> {
+        match current(parts, st).await? {
+            (user, true) => Ok(SessionUser(user)),
+            (_, false) => Err(ApiError::Forbidden(
+                "sign in to the web app for this".into(),
+            )),
         }
-        Ok(CurrentUser(user))
     }
 }
 
@@ -296,6 +319,11 @@ mod tests {
             ("PATCH", "/api/inventory/1", Some(json!({"count": 1}))),
             ("GET", "/api/plan", None),
             ("POST", "/api/sync/inventory", Some(json!({"items": {}}))),
+            ("GET", "/api/tokens", None),
+            ("POST", "/api/tokens", Some(json!({"name": "pc"}))),
+            ("DELETE", "/api/tokens/pc", None),
+            ("GET", "/api/me", None),
+            ("DELETE", "/api/me", None),
         ] {
             let (s, v) = call(&pool, Auth::None, m, u, b.clone()).await;
             assert_eq!(s, StatusCode::UNAUTHORIZED, "{m} {u}");

@@ -58,6 +58,10 @@ fn session_cookie(c: &Config, value: &str) -> String {
     )
 }
 
+pub(crate) fn clear_session(c: &Config) -> String {
+    cookie(c, SESSION_COOKIE, "", "/", 0)
+}
+
 fn clear_oauth(c: &Config) -> String {
     cookie(c, OAUTH_COOKIE, "", "/auth", 0)
 }
@@ -276,7 +280,7 @@ async fn logout(
     if let Some(k) = jar.get(SESSION_COOKIE) {
         crate::sessions::delete(&st.pool, k.value()).await?;
     }
-    let clear = cookie(&st.config, SESSION_COOKIE, "", "/", 0);
+    let clear = clear_session(&st.config);
     Ok((StatusCode::NO_CONTENT, AppendHeaders([(SET_COOKIE, clear)])).into_response())
 }
 
@@ -502,6 +506,14 @@ mod tests {
                 .unwrap();
         assert_eq!(row, ("111".into(), "Tenno".into(), "abc".into()));
         assert_eq!(count(&pool, "SELECT count(*) FROM sessions").await, 1);
+        let (s, v) = call(&pool, Auth::Session(&session), "GET", "/api/me", None).await;
+        assert_eq!(s, StatusCode::OK);
+        assert_eq!(v["display_name"], "Tenno");
+        assert_eq!(
+            v["avatar_url"],
+            "https://cdn.discordapp.com/avatars/111/abc.png?size=64"
+        );
+        assert!(v["id"].as_i64().unwrap() > 1);
         // Neither Discord's token nor our cookie is stored anywhere.
         for t in ["sessions", "users", "api_tokens"] {
             let n: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
