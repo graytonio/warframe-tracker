@@ -77,6 +77,24 @@ pub struct LocationGroup {
     pub covers: Vec<LocationCover>,
     /// Up to 5 example nodes.
     pub nodes: Vec<String>,
+    /// Every source at this place, one row per site and material.
+    pub sites: Vec<Site>,
+}
+
+/// One source of one need at a place: "Mantle (Defense) drops Neurodes, rotation C, 25%".
+#[derive(Serialize, Debug)]
+pub struct Site {
+    /// Node ("Mantle (Defense)"), activity, "Any mission on Earth", "X (enemy)" or container.
+    pub site: String,
+    /// `mission`, `planet`, `enemy` or `container`.
+    pub kind: String,
+    pub item_id: i64,
+    pub name: String,
+    pub rotation: Option<String>,
+    pub chance: Option<f64>,
+    pub quantity: Option<i32>,
+    /// Relic name when the site drops a relic that drops the material.
+    pub via: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -185,6 +203,7 @@ fn by_location(
     type Tally<'a> = (usize, [HashSet<&'a str>; 4]);
     let mut places: HashMap<&str, Vec<Tally>> = HashMap::new();
     let mut nodes: HashMap<&str, Vec<&str>> = HashMap::new();
+    let mut sites: HashMap<&str, Vec<(usize, Site)>> = HashMap::new();
     for (i, n) in needs.iter().enumerate() {
         for s in &n.sources {
             let Some(k) = KINDS.iter().position(|k| *k == s.kind) else {
@@ -206,6 +225,33 @@ fn by_location(
                     covers.push((i, Default::default()));
                 }
                 covers.last_mut().unwrap().1[k].insert(&s.name);
+                let site = match s.kind.as_str() {
+                    // "Earth / Mantle (Defense)" → "Mantle (Defense)"; "Cambion Drift: Bounty…" → "Bounty…"
+                    "mission" => match s.name.split_once(" / ") {
+                        Some((_, r)) => r.to_string(),
+                        None => s
+                            .name
+                            .strip_prefix(&format!("{p}: "))
+                            .unwrap_or(&s.name)
+                            .to_string(),
+                    },
+                    "planet" => format!("Any mission on {p}"),
+                    "enemy" => format!("{} (enemy)", s.name),
+                    _ => s.name.clone(),
+                };
+                sites.entry(p).or_default().push((
+                    k,
+                    Site {
+                        site,
+                        kind: s.kind.clone(),
+                        item_id: n.item.id,
+                        name: n.item.name.clone(),
+                        rotation: s.rotation.clone(),
+                        chance: s.chance,
+                        quantity: s.quantity,
+                        via: s.via.clone(),
+                    },
+                ));
                 // ponytail: nodes come from mission sources only; tileset-inferred examples deferred
                 let node = match s.name.split_once(" / ") {
                     Some((_, rest)) if s.kind == "mission" => rest.split(" (").next(),
@@ -246,6 +292,23 @@ fn by_location(
                 .into_iter()
                 .map(String::from)
                 .collect(),
+                sites: {
+                    // Missions first (KINDS has planet first), then region resource, enemies, containers.
+                    let rank = |k: usize| [1, 0, 2, 3][k];
+                    let mut rows = sites.remove(place).unwrap_or_default();
+                    rows.sort_by(|(ka, a), (kb, b)| {
+                        rank(*ka)
+                            .cmp(&rank(*kb))
+                            .then(a.site.cmp(&b.site))
+                            .then(
+                                b.chance
+                                    .partial_cmp(&a.chance)
+                                    .unwrap_or(std::cmp::Ordering::Equal),
+                            )
+                            .then(a.name.cmp(&b.name))
+                    });
+                    rows.into_iter().map(|(_, r)| r).collect()
+                },
             };
             (total, group)
         })
@@ -732,6 +795,121 @@ mod tests {
         assert_eq!(earth.covers.len(), 1);
         assert_eq!(earth.covers[0].name, "Saryn Prime Neuroptics");
         assert_eq!(earth.covers[0].via, s(&["1 mission"]));
+    }
+
+    /// `(site, kind, material, rotation, chance, via)` for compact assertions.
+    type Row = (
+        String,
+        String,
+        String,
+        Option<String>,
+        Option<f64>,
+        Option<String>,
+    );
+    fn sites(g: &super::LocationGroup) -> Vec<Row> {
+        g.sites
+            .iter()
+            .map(|x| {
+                (
+                    x.site.clone(),
+                    x.kind.clone(),
+                    x.name.clone(),
+                    x.rotation.clone(),
+                    x.chance,
+                    x.via.clone(),
+                )
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn sites_list_every_source_at_the_place() {
+        let pool = test_pool().await;
+        seed_places(
+            &pool,
+            &[(20, "Rubedo"), (21, "Neurodes")],
+            "INSERT INTO drop_sources (source_kind,source_name,rotation,item_id,chance,planet) VALUES
+               ('planet','Earth',null,20,null,'Earth'),
+               ('mission','Earth / Mantle (Defense)','A',21,10,'Earth'),
+               ('mission','Earth / Mantle (Defense)','C',21,25,'Earth'),
+               ('mission','Earth / Cervantes (Spy) — caches','A',20,5,'Earth'),
+               ('enemy','Earth Grunt',null,21,5,null);
+             INSERT INTO enemy_locations VALUES ('Earth Grunt','Earth','Grineer Forest');",
+        )
+        .await;
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
+        let o = |x: &str| Some(x.to_string());
+        assert_eq!(
+            sites(&p.by_location[0]),
+            vec![
+                // missions first, by site, then best chance
+                (
+                    o("Cervantes (Spy) — caches").unwrap(),
+                    "mission".into(),
+                    "Rubedo".into(),
+                    o("A"),
+                    Some(5.0),
+                    None
+                ),
+                (
+                    o("Mantle (Defense)").unwrap(),
+                    "mission".into(),
+                    "Neurodes".into(),
+                    o("C"),
+                    Some(25.0),
+                    None
+                ),
+                (
+                    o("Mantle (Defense)").unwrap(),
+                    "mission".into(),
+                    "Neurodes".into(),
+                    o("A"),
+                    Some(10.0),
+                    None
+                ),
+                (
+                    "Any mission on Earth".into(),
+                    "planet".into(),
+                    "Rubedo".into(),
+                    None,
+                    None,
+                    None
+                ),
+                (
+                    "Earth Grunt (enemy)".into(),
+                    "enemy".into(),
+                    "Neurodes".into(),
+                    None,
+                    Some(5.0),
+                    None
+                ),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn sites_show_relic_routes() {
+        let pool = test_pool().await;
+        seed(&pool).await;
+        sqlx::raw_sql(
+            "UPDATE drop_sources SET planet = 'Earth' WHERE source_name = 'Earth/Mantle'",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
+        let earth = p.by_location.iter().find(|g| g.place == "Earth").unwrap();
+        assert_eq!(
+            sites(earth),
+            vec![(
+                "Earth/Mantle".into(),
+                "mission".into(),
+                "Saryn Prime Neuroptics".into(),
+                Some("C".into()),
+                Some(20.0),
+                Some("Axi S1".into())
+            )]
+        );
     }
 
     #[tokio::test]

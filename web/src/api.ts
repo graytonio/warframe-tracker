@@ -21,7 +21,9 @@ export type Need = { item: ItemSummary; needed: number; have: number; for: { id:
 export type SourceGroup = { kind: string; name: string; rotation: string | null; best_chance: number | null;
   vaulted: boolean; pvp: boolean; covers: { item_id: number; name: string; chance: number | null; via: string | null }[] };
 export type LocationCover = { item_id: number; name: string; via: string[] };
-export type LocationGroup = { place: string; known: boolean; covers: LocationCover[]; nodes: string[] };
+export type Site = { site: string; kind: string; item_id: number; name: string;
+  rotation: string | null; chance: number | null; quantity: number | null; via: string | null };
+export type LocationGroup = { place: string; known: boolean; covers: LocationCover[]; nodes: string[]; sites: Site[] };
 export type Plan = { by_need: Need[]; by_source: SourceGroup[]; by_location: LocationGroup[]; unsourced: Need[] };
 
 export type Meta = { last_import_at: string | null; item_count: number;

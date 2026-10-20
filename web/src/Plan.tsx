@@ -57,13 +57,35 @@ export default function PlanPage() {
         <ul className="rows">
           {data.by_location.map(g => (
             <li key={g.place}>
-              <div className="row-head">
-                <h3 className="grow">{g.place}</h3>
-              </div>
-              <ul className="chips" aria-label="Covers">
-                {g.covers.map(c => <li key={c.item_id}>{c.name} — {c.via.join(', ')}</li>)}
-              </ul>
-              {g.nodes.length > 0 && <p className="muted">e.g. {g.nodes.join(', ')}</p>}
+              <details className="place">
+                <summary>
+                  <h3>{g.place}</h3>
+                  <ul className="chips" aria-label="Covers">
+                    {g.covers.map(c => <li key={c.item_id}>{c.name} — {c.via.join(', ')}</li>)}
+                  </ul>
+                  {g.nodes.length > 0 && <p className="muted">e.g. {g.nodes.join(', ')}</p>}
+                </summary>
+                <div className="table-wrap">
+                  <table>
+                    <caption className="sr-only">Where each material drops on {g.place}</caption>
+                    <thead>
+                      <tr><th scope="col">Site</th><th scope="col">Material</th><th scope="col">Rotation</th><th scope="col">Chance</th><th scope="col">Qty</th><th scope="col">Via</th></tr>
+                    </thead>
+                    <tbody>
+                      {g.sites.map((s, i) => (
+                        <tr key={i}>
+                          <th scope="row">{s.site}</th>
+                          <td>{s.name}</td>
+                          <td>{s.rotation ?? '—'}</td>
+                          <td className="nowrap">{s.chance != null ? pct(s.chance) : '—'}</td>
+                          <td>{s.quantity != null ? `×${s.quantity}` : '—'}</td>
+                          <td>{s.via ? `${s.via} relic` : s.kind === 'planet' ? 'region resource' : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
             </li>
           ))}
         </ul>

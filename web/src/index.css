@@ -96,3 +96,9 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--border); }
 tbody th { font-weight: normal; }
 label.inline { display: flex; gap: .5rem; align-items: center; margin: .75rem 0; }
+.place summary { cursor: pointer; list-style: none; }
+.place summary::-webkit-details-marker { display: none; }
+.place summary h3 { display: inline; margin: 0; }
+.place summary h3::before { content: "▸ "; color: var(--muted); }
+.place[open] summary h3::before { content: "▾ "; }
+.place .table-wrap { margin-top: .6rem; }
