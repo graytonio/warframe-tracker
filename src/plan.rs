@@ -89,17 +89,13 @@ pub async fn build_plan(pool: &PgPool, user_id: i64, opts: PlanOptions) -> sqlx:
     .into_iter()
     .collect();
 
-    let mut needs: HashMap<i64, Need> = HashMap::new();
+    let mut trees = Vec::new();
     for root in roots {
         if let Some(t) = load_tree(pool, user_id, root).await? {
-            let r = ItemRef {
-                id: t.item.id,
-                name: t.item.name.clone(),
-            };
-            collect(&t, &r, &sourced, &mut needs);
+            trees.push(t);
         }
     }
-    needs.retain(|_, n| n.have < n.needed);
+    let mut needs = collect(&trees, &sourced);
 
     let ids: Vec<i64> = needs.keys().copied().collect();
     for (id, s) in item_sources(pool, &ids).await? {
@@ -120,33 +116,105 @@ pub async fn build_plan(pool: &PgPool, user_id: i64, opts: PlanOptions) -> sqlx:
     })
 }
 
-/// Walk one wishlist tree, adding every missing thing to `needs` (rules in Task 5, step 2).
-fn collect(
-    node: &ProgressNode,
-    root: &ItemRef,
-    sourced: &HashSet<i64>,
-    needs: &mut HashMap<i64, Need>,
-) {
-    let leaf = node.children.is_empty();
-    if node.obtained || (!leaf && node.have >= node.needed) {
-        return;
-    }
-    if leaf || sourced.contains(&node.item.id) {
-        let n = needs.entry(node.item.id).or_insert_with(|| Need {
-            item: node.item.clone(),
-            needed: 0,
-            have: node.have,
-            for_: vec![],
-            sources: vec![],
-        });
-        n.needed += node.needed;
-        if n.for_.iter().all(|f| f.id != root.id) {
-            n.for_.push(root.clone());
+/// Everything still missing across all wishlist trees.
+///
+/// Demand is totalled per item over every tree before inventory is subtracted, and
+/// only the shortfall is passed down to ingredients. Per-node checks would let one
+/// Forma in inventory cover two wishlist items, or expand a recipe 4x when 3 of 4 are owned.
+fn collect(trees: &[ProgressNode], sourced: &HashSet<i64>) -> HashMap<i64, Need> {
+    // Merge the trees into one recipe graph.
+    let mut info: HashMap<i64, &ProgressNode> = HashMap::new();
+    let mut edges: HashMap<i64, Vec<(i64, i64)>> = HashMap::new();
+    fn walk<'a>(
+        n: &'a ProgressNode,
+        info: &mut HashMap<i64, &'a ProgressNode>,
+        edges: &mut HashMap<i64, Vec<(i64, i64)>>,
+    ) {
+        if info.insert(n.item.id, n).is_some() {
+            return;
+        }
+        // `needed` is multiplied down the tree, so the recipe count is the ratio.
+        let kids = n
+            .children
+            .iter()
+            .map(|c| (c.item.id, c.needed / n.needed.max(1)))
+            .collect();
+        edges.insert(n.item.id, kids);
+        for c in &n.children {
+            walk(c, info, edges);
         }
     }
-    for c in &node.children {
-        collect(c, root, sourced, needs);
+    for t in trees {
+        walk(t, &mut info, &mut edges);
     }
+
+    // Parents before children, so an item's demand is complete before it's expanded.
+    fn visit(
+        id: i64,
+        edges: &HashMap<i64, Vec<(i64, i64)>>,
+        seen: &mut HashSet<i64>,
+        out: &mut Vec<i64>,
+    ) {
+        if !seen.insert(id) {
+            return;
+        }
+        for (c, _) in &edges[&id] {
+            visit(*c, edges, seen, out);
+        }
+        out.push(id);
+    }
+    let (mut order, mut seen) = (Vec::new(), HashSet::new());
+    for t in trees {
+        visit(t.item.id, &edges, &mut seen, &mut order);
+    }
+    order.reverse();
+
+    let mut demand: HashMap<i64, i64> = HashMap::new();
+    let mut for_: HashMap<i64, Vec<ItemRef>> = HashMap::new();
+    for t in trees {
+        *demand.entry(t.item.id).or_default() += 1;
+        for_.entry(t.item.id).or_default().push(ItemRef {
+            id: t.item.id,
+            name: t.item.name.clone(),
+        });
+    }
+
+    let mut needs = HashMap::new();
+    for id in order {
+        let d = demand.get(&id).copied().unwrap_or(0);
+        let node = info[&id];
+        if d == 0 || node.obtained {
+            continue;
+        }
+        let roots = for_.get(&id).cloned().unwrap_or_default();
+        let kids = &edges[&id];
+        if (kids.is_empty() || sourced.contains(&id)) && node.have < d {
+            needs.insert(
+                id,
+                Need {
+                    item: node.item.clone(),
+                    needed: d,
+                    have: node.have,
+                    for_: roots.clone(),
+                    sources: vec![],
+                },
+            );
+        }
+        let short = (d - node.have).max(0);
+        if short == 0 {
+            continue;
+        }
+        for (c, n) in kids {
+            *demand.entry(*c).or_default() += short.saturating_mul(*n);
+            let f = for_.entry(*c).or_default();
+            for r in &roots {
+                if f.iter().all(|x| x.id != r.id) {
+                    f.push(r.clone());
+                }
+            }
+        }
+    }
+    needs
 }
 
 fn group(needs: &[Need]) -> Vec<SourceGroup> {
@@ -316,6 +384,55 @@ mod tests {
         let p = build_plan(&pool, 1, Default::default()).await.unwrap();
         let last = p.by_source.last().unwrap();
         assert!(last.vaulted && last.name == "Axi S1");
+    }
+
+    /// Forma (100) is a resource with its own recipe: 1 Neural Sensors (101).
+    /// Two wishlist items (102, 103) each need Forma; Forma drops from a mission.
+    async fn seed_forma(pool: &sqlx::PgPool, per_item: i32, owned: i64) {
+        sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
+            "INSERT INTO items (id, wiki_name, category) VALUES
+               (100,'Forma','resource'),(101,'Neural Sensors','resource'),
+               (102,'Item A','weapon'),(103,'Item B','weapon');
+             INSERT INTO recipes VALUES (100,101,1),(102,100,{per_item}),(103,100,{per_item});
+             INSERT INTO drop_sources (source_kind,source_name,item_id,chance) VALUES ('mission','Void',100,5);
+             INSERT INTO wishlist (user_id,item_id) VALUES (1,102),(1,103);
+             INSERT INTO inventory (user_id,item_id,count) VALUES (1,100,{owned})"
+        )))
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn inventory_is_shared_across_wishlist_items() {
+        let pool = test_pool().await;
+        seed_forma(&pool, 1, 1).await;
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
+        let forma = p.by_need.iter().find(|n| n.item.name == "Forma").unwrap();
+        assert_eq!((forma.needed, forma.have), (2, 1));
+        assert_eq!(forma.for_.len(), 2);
+        // Only the one missing Forma gets crafted.
+        let ns = p
+            .by_need
+            .iter()
+            .chain(&p.unsourced)
+            .find(|n| n.item.name == "Neural Sensors")
+            .unwrap();
+        assert_eq!(ns.needed, 1);
+    }
+
+    #[tokio::test]
+    async fn partial_inventory_expands_only_the_shortfall() {
+        let pool = test_pool().await;
+        seed_forma(&pool, 2, 3).await; // need 4, own 3
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
+        let ns = p
+            .by_need
+            .iter()
+            .chain(&p.unsourced)
+            .find(|n| n.item.name == "Neural Sensors")
+            .unwrap();
+        assert_eq!(ns.needed, 1);
     }
 
     #[tokio::test]
