@@ -29,11 +29,24 @@ export type Plan = { by_need: Need[]; by_source: SourceGroup[]; by_location: Loc
 export type Meta = { last_import_at: string | null; item_count: number;
   sources: { title: string; rev_id: number; fetched_at: string }[] };
 
+export type ItemDetail = { item: ItemSummary; tree: ProgressNode; sources: Source[] };
+
+export type Me = { id: number; display_name: string; avatar_url: string | null };
+export type TokenRow = { name: string; created_at: string; last_used_at: string | null };
+export type NewToken = { name: string; token: string };
+
+let onUnauthorized: (() => void) | undefined
+/** Called on any 401 except the `/me` probe; the auth provider decides what to do. */
+export function setOnUnauthorized(f: (() => void) | undefined) { onUnauthorized = f }
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  // The browser adds Origin to writes itself; the server checks it against PUBLIC_URL.
   const res = await fetch(`/api${path}`, {
     ...init,
+    credentials: 'same-origin',
     headers: init?.body ? { "content-type": "application/json", ...init?.headers } : init?.headers,
   });
+  if (res.status === 401 && path !== '/me') onUnauthorized?.()
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? res.statusText);
   return res.status === 204 ? (undefined as T) : res.json();
 }

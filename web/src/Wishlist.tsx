@@ -1,54 +1,6 @@
 import { useState } from 'react'
-import { send, useApi, type ProgressNode, type WishlistEntry } from './api'
-import { ItemSearch, Status } from './components'
-
-export function CountInput({ itemId, value, label, onSaved, onError }: {
-  itemId: number; value: number; label: string; onSaved: () => void; onError: (e: string) => void
-}) {
-  return (
-    <input
-      key={value} // remount when the server value changes so defaultValue resyncs
-      type="number" min={0} step={1} inputMode="numeric" className="count"
-      aria-label={label} defaultValue={value}
-      onBlur={e => {
-        const n = Number(e.target.value)
-        if (!Number.isInteger(n) || n < 0) { e.target.value = String(value); return }
-        if (n !== value) send('PATCH', `/inventory/${itemId}`, { count: n }).then(onSaved, err => onError(err.message))
-      }}
-    />
-  )
-}
-
-function Tree({ node, reload, onError }: { node: ProgressNode; reload: () => void; onError: (e: string) => void }) {
-  const { item } = node
-  const isResource = item.category === 'resource'
-  return (
-    <li className={node.covered ? 'covered' : undefined}>
-      <div className="node">
-        {isResource ? (
-          <>
-            <span className="grow">{item.name}</span>
-            <span className="nowrap">
-              <CountInput itemId={item.id} value={node.have} label={`${item.name} count`} onSaved={reload} onError={onError} />
-              {' / '}{node.needed}
-            </span>
-          </>
-        ) : (
-          <label className="grow">
-            <input
-              type="checkbox" checked={node.obtained}
-              onChange={e => send('PUT', `/progress/${item.id}`, { obtained: e.target.checked }).then(reload, err => onError(err.message))}
-            />
-            {' '}{item.name}{node.needed > 1 && ` ×${node.needed}`}
-          </label>
-        )}
-      </div>
-      {node.children.length > 0 && (
-        <ul>{node.children.map((c, i) => <Tree key={`${c.item.id}-${i}`} node={c} reload={reload} onError={onError} />)}</ul>
-      )}
-    </li>
-  )
-}
+import { send, useApi, type WishlistEntry } from './api'
+import { ItemSearch, Status, Tree } from './components'
 
 export default function Wishlist() {
   const { data, error, reload } = useApi<WishlistEntry[]>('/wishlist')

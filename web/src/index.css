@@ -102,3 +102,12 @@ label.inline { display: flex; gap: .5rem; align-items: center; margin: .75rem 0;
 .place summary h3::before { content: "▸ "; color: var(--muted); }
 .place[open] summary h3::before { content: "▾ "; }
 .place .table-wrap { margin-top: .6rem; }
+
+header nav { align-items: center; flex-wrap: wrap; }
+.account { display: flex; align-items: center; gap: .6rem; }
+.avatar { border-radius: 50%; }
+button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+button.link { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+code { overflow-wrap: anywhere; }
+pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: .5rem; white-space: pre-wrap; overflow-wrap: anywhere; }
