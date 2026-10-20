@@ -39,7 +39,7 @@ Frontend dev loop: run `mise run run` for the API, then `cd web && npm install &
 
 ## Release
 
-Bump `version` in `Cargo.toml`, commit, then `git tag vX.Y.Z && git push --tags`. CI checks that the tag matches `Cargo.toml`, publishes a multi-arch image to `ghcr.io/graytonio/warframe-tracker`, and creates a GitHub release.
+Bump `version` in `Cargo.toml`, commit, then `git tag vX.Y.Z && git push --tags`. CI checks that the tag matches `Cargo.toml`, publishes an amd64 image to `ghcr.io/graytonio/warframe-tracker`, and creates a GitHub release.
 
 ## Deploy
 
