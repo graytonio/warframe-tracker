@@ -17,10 +17,14 @@ pub struct ProgressNode {
 }
 
 impl ProgressNode {
-    /// Share of direct children covered; 100 when this node is covered or a leaf.
+    /// Share of direct children covered; 100 when this node is covered, 0 for an
+    /// uncovered leaf (e.g. a mod or recipe-less item not yet in inventory).
     pub fn progress_pct(&self) -> f64 {
-        if self.covered || self.children.is_empty() {
+        if self.covered {
             return 100.0;
+        }
+        if self.children.is_empty() {
+            return 0.0;
         }
         let done = self.children.iter().filter(|c| c.covered).count();
         done as f64 * 100.0 / self.children.len() as f64

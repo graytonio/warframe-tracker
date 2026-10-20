@@ -11,7 +11,7 @@ export type Source = { kind: "mission" | "enemy" | "container" | "planet" | "rel
   via: string | null;
   vaulted: boolean | null; rarity: string | null; pvp: boolean; planet: string | null };
 
-export type WishlistEntry = { item: ItemSummary; added_at: string; completed_at: string | null;
+export type WishlistEntry = { item: ItemSummary; added_at: string;
   progress_pct: number; tree: ProgressNode };
 
 export type InventoryRow = { item: ItemSummary; count: number; source: string; updated_at: string };

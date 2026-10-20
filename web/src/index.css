@@ -68,7 +68,6 @@ footer { margin: 2rem 0 1rem; padding-top: .75rem; border-top: 1px solid var(--b
 .img-ph { width: 40px; height: 40px; }
 
 .entry { padding: .5rem .75rem; }
-.entry.done { opacity: .6; }
 .entry summary { display: flex; align-items: center; gap: .6rem; cursor: pointer; }
 .entry summary::before { content: "▸"; color: var(--muted); }
 .entry details[open] summary::before { content: "▾"; }

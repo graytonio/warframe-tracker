@@ -6,7 +6,7 @@ use axum::{
     Json, Router,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
-    routing::{get, patch, put},
+    routing::{delete, get, patch, put},
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -15,10 +15,7 @@ use sqlx::{AssertSqlSafe, PgExecutor, Row};
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/wishlist", get(wishlist).post(wishlist_add))
-        .route(
-            "/wishlist/{item_id}",
-            patch(wishlist_patch).delete(wishlist_delete),
-        )
+        .route("/wishlist/{item_id}", delete(wishlist_delete))
         .route("/progress/{item_id}", put(progress_put))
         .route("/inventory", get(inventory).put(inventory_put))
         .route("/inventory/{item_id}", patch(inventory_patch))
@@ -38,34 +35,47 @@ fn found(rows: u64) -> ApiResult<StatusCode> {
 struct WishlistEntry {
     item: ItemSummary,
     added_at: DateTime<Utc>,
-    completed_at: Option<DateTime<Utc>>,
     progress_pct: f64,
     tree: ProgressNode,
 }
 
+/// Entries whose tree is fully covered by inventory/progress are finished, so they
+/// are dropped here instead of being listed.
 async fn wishlist(
     State(st): State<AppState>,
     CurrentUser(user): CurrentUser,
 ) -> ApiResult<Json<Vec<WishlistEntry>>> {
-    let rows: Vec<(i64, DateTime<Utc>, Option<DateTime<Utc>>)> = sqlx::query_as(
-        "SELECT item_id, added_at, completed_at FROM wishlist
+    let rows: Vec<(i64, DateTime<Utc>)> = sqlx::query_as(
+        "SELECT item_id, added_at FROM wishlist
          WHERE user_id = $1 ORDER BY added_at, item_id",
     )
     .bind(user)
     .fetch_all(&st.pool)
     .await?;
     let mut out = Vec::with_capacity(rows.len());
+    let mut finished = Vec::new();
     // ponytail: one load_tree per entry; batch it if wishlists get long.
-    for (item_id, added_at, completed_at) in rows {
+    for (item_id, added_at) in rows {
         if let Some(tree) = load_tree(&st.pool, user, item_id).await? {
+            let progress_pct = tree.progress_pct();
+            if progress_pct >= 100.0 {
+                finished.push(item_id);
+                continue;
+            }
             out.push(WishlistEntry {
                 item: tree.item.clone(),
                 added_at,
-                completed_at,
-                progress_pct: tree.progress_pct(),
+                progress_pct,
                 tree,
             });
         }
+    }
+    if !finished.is_empty() {
+        sqlx::query("DELETE FROM wishlist WHERE user_id = $1 AND item_id = ANY($2)")
+            .bind(user)
+            .bind(&finished)
+            .execute(&st.pool)
+            .await?;
     }
     Ok(Json(out))
 }
@@ -88,30 +98,6 @@ async fn wishlist_add(
     )
     .bind(user)
     .bind(b.item_id)
-    .execute(&st.pool)
-    .await?;
-    found(r.rows_affected())
-}
-
-#[derive(Deserialize)]
-struct WishlistPatch {
-    completed: bool,
-}
-
-async fn wishlist_patch(
-    State(st): State<AppState>,
-    CurrentUser(user): CurrentUser,
-    Path(item_id): Path<i64>,
-    Json(b): Json<WishlistPatch>,
-) -> ApiResult<StatusCode> {
-    let r = sqlx::query(
-        "UPDATE wishlist
-         SET completed_at = CASE WHEN $3 THEN COALESCE(completed_at, now()) END
-         WHERE user_id = $1 AND item_id = $2",
-    )
-    .bind(user)
-    .bind(item_id)
-    .bind(b.completed)
     .execute(&st.pool)
     .await?;
     found(r.rows_affected())
@@ -316,7 +302,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn wishlist_add_list_complete_delete() {
+    async fn wishlist_add_list_delete() {
         let pool = test_pool().await;
         seed(&pool).await;
         let add = || call(&pool, "POST", "/api/wishlist", Some(json!({"item_id": 1})));
@@ -327,9 +313,22 @@ mod tests {
         assert_eq!(v.as_array().unwrap().len(), 1);
         assert_eq!(v[0]["item"]["name"], "Saryn Prime");
         assert!(v[0]["added_at"].is_string());
-        assert!(v[0]["completed_at"].is_null());
         assert_eq!(v[0]["tree"]["children"][0]["children"][0]["needed"], 1200);
         assert_eq!(v[0]["progress_pct"], 0.0);
+        let del = call(&pool, "DELETE", "/api/wishlist/1", None).await;
+        assert_eq!(del.0, StatusCode::NO_CONTENT);
+        assert_eq!(call(&pool, "GET", "/api/wishlist", None).await.1, json!([]));
+        assert_eq!(
+            call(&pool, "DELETE", "/api/wishlist/1", None).await.0,
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn fully_covered_entry_is_removed_from_wishlist() {
+        let pool = test_pool().await;
+        seed(&pool).await;
+        call(&pool, "POST", "/api/wishlist", Some(json!({"item_id": 1}))).await;
         let put = call(
             &pool,
             "PUT",
@@ -338,25 +337,32 @@ mod tests {
         )
         .await;
         assert_eq!(put.0, StatusCode::NO_CONTENT);
-        let v = call(&pool, "GET", "/api/wishlist", None).await.1;
-        assert_eq!(v[0]["progress_pct"], 100.0);
-        let patch = call(
-            &pool,
-            "PATCH",
-            "/api/wishlist/1",
-            Some(json!({"completed": true})),
-        )
-        .await;
-        assert_eq!(patch.0, StatusCode::NO_CONTENT);
-        let v = call(&pool, "GET", "/api/wishlist", None).await.1;
-        assert!(v[0]["completed_at"].is_string());
-        let del = call(&pool, "DELETE", "/api/wishlist/1", None).await;
-        assert_eq!(del.0, StatusCode::NO_CONTENT);
         assert_eq!(call(&pool, "GET", "/api/wishlist", None).await.1, json!([]));
         assert_eq!(
             call(&pool, "DELETE", "/api/wishlist/1", None).await.0,
             StatusCode::NOT_FOUND
         );
+    }
+
+    #[tokio::test]
+    async fn wishlisted_mod_follows_inventory() {
+        let pool = test_pool().await;
+        sqlx::raw_sql("INSERT INTO items (id, wiki_name, category) VALUES (7,'Serration','mod')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        call(&pool, "POST", "/api/wishlist", Some(json!({"item_id": 7}))).await;
+        let v = call(&pool, "GET", "/api/wishlist", None).await.1;
+        assert_eq!(v[0]["progress_pct"], 0.0);
+        assert_eq!(v[0]["tree"]["have"], 0);
+        call(
+            &pool,
+            "PATCH",
+            "/api/inventory/7",
+            Some(json!({"count": 1})),
+        )
+        .await;
+        assert_eq!(call(&pool, "GET", "/api/wishlist", None).await.1, json!([]));
     }
 
     #[tokio::test]
@@ -377,11 +383,6 @@ mod tests {
                     json!({"obtained": true}),
                 ),
                 ("PATCH", format!("/api/inventory/{id}"), json!({"count": 3})),
-                (
-                    "PATCH",
-                    format!("/api/wishlist/{id}"),
-                    json!({"completed": true}),
-                ),
                 (
                     "PUT",
                     "/api/inventory".to_string(),
