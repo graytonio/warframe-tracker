@@ -1,7 +1,7 @@
 # Discord Auth — Design
 
 Date: 2026-10-19
-Status: Draft, awaiting review
+Status: Approved 2026-10-19
 Builds on: `2026-10-19-warframe-tracker-design.md`, `2026-10-19-inventory-sync-design.md`
 
 ## Goal
