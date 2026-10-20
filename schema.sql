@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS drop_sources (
   quantity integer
 );
 CREATE INDEX IF NOT EXISTS drop_sources_item ON drop_sources (item_id);
+-- Conclave (PvP) reward tables; the planner hides them unless asked.
+ALTER TABLE drop_sources ADD COLUMN IF NOT EXISTS is_pvp boolean NOT NULL DEFAULT false;
 
 -- User data: every table keyed by user_id.
 

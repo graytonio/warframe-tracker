@@ -6,8 +6,12 @@ use serde_json::{Map, Value, json};
 use sqlx::{PgConnection, PgPool};
 use std::collections::{HashMap, HashSet};
 
+/// Bump whenever `map_modules` output changes, so the next run re-maps even if the wiki didn't change.
+const IMPORT_VERSION: i64 = 2;
+
 #[derive(Serialize, Default, Debug)]
 pub struct ImportSummary {
+    pub version: i64,
     pub items: usize,
     pub recipes: usize,
     pub relic_drops: usize,
@@ -56,9 +60,12 @@ pub async fn run_import_with(
         .await?;
         changed += 1;
     }
-    let ran: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM import_runs)")
-        .fetch_one(&mut *tx)
-        .await?;
+    let ran: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM import_runs WHERE (summary->>'version')::bigint = $1)",
+    )
+    .bind(IMPORT_VERSION)
+    .fetch_one(&mut *tx)
+    .await?;
     if changed == 0 && ran {
         println!("wiki unchanged");
         return Ok(None);
@@ -133,7 +140,10 @@ pub async fn map_modules(
     )
     .execute(&mut *tx)
     .await?;
-    let mut s = ImportSummary::default();
+    let mut s = ImportSummary {
+        version: IMPORT_VERSION,
+        ..Default::default()
+    };
     let mut ids = Ids::new();
 
     // 1. Items from the per-category modules.
@@ -366,6 +376,8 @@ pub async fn map_modules(
     for (alias, rec) in obj(&dt["Missions"], "Missions")? {
         let fallback = vec![rec["Name"].as_str().unwrap_or(alias).to_string()];
         let names = nodes.get(alias.as_str()).unwrap_or(&fallback);
+        // Conclave drop tables: `ConclaveLunaro`, `PVPWeeklyChallengeReward`, ...
+        let pvp = alias.starts_with("Conclave") || alias.starts_with("PVP");
         for (rot, entries) in rec["Rewards"].as_object().into_iter().flatten() {
             for e in entries.as_array().into_iter().flatten() {
                 let Some((name, ty, chance, qty)) = entry(e) else {
@@ -375,7 +387,7 @@ pub async fn map_modules(
                     continue;
                 };
                 for n in names {
-                    rows.push("mission", n, Some(rot), id, chance, qty);
+                    rows.push("mission", n, Some(rot), id, chance, qty, pvp);
                 }
             }
         }
@@ -397,7 +409,7 @@ pub async fn map_modules(
                     let Some(id) = drop_item(&ids, item, ty, name, &mut s) else {
                         continue;
                     };
-                    rows.push(kind, name, None, id, chance.map(|c| c * mult), qty);
+                    rows.push(kind, name, None, id, chance.map(|c| c * mult), qty, false);
                 }
             }
         }
@@ -412,16 +424,17 @@ pub async fn map_modules(
             .filter_map(Value::as_str)
         {
             match resolve(&ids, n, &["resource"]) {
-                Some((_, id)) => rows.push("planet", planet, None, id, None, None),
+                Some((_, id)) => rows.push("planet", planet, None, id, None, None, false),
                 None => s.unresolved.push(format!("{planet}: {n}")),
             }
         }
     }
     s.drop_sources = rows.kind.len();
     sqlx::query(
-        "INSERT INTO drop_sources (source_kind, source_name, rotation, item_id, chance, quantity)
-         SELECT k, n, r, i, round(c::numeric, 4), q
-         FROM UNNEST($1::text[], $2::text[], $3::text[], $4::bigint[], $5::float8[], $6::int[]) AS t(k, n, r, i, c, q)",
+        "INSERT INTO drop_sources (source_kind, source_name, rotation, item_id, chance, quantity, is_pvp)
+         SELECT k, n, r, i, round(c::numeric, 4), q, p
+         FROM UNNEST($1::text[], $2::text[], $3::text[], $4::bigint[], $5::float8[], $6::int[], $7::bool[])
+           AS t(k, n, r, i, c, q, p)",
     )
     .bind(rows.kind)
     .bind(rows.name)
@@ -429,6 +442,7 @@ pub async fn map_modules(
     .bind(rows.item)
     .bind(rows.chance)
     .bind(rows.quantity)
+    .bind(rows.pvp)
     .execute(&mut *tx)
     .await?;
 
@@ -450,9 +464,12 @@ struct DropRows {
     item: Vec<i64>,
     chance: Vec<Option<f64>>,
     quantity: Vec<Option<i32>>,
+    pvp: Vec<bool>,
 }
 
 impl DropRows {
+    // One argument per column; a struct here would just restate DropRows.
+    #[allow(clippy::too_many_arguments)]
     fn push(
         &mut self,
         kind: &str,
@@ -461,6 +478,7 @@ impl DropRows {
         item: i64,
         chance: Option<f64>,
         qty: Option<i32>,
+        pvp: bool,
     ) {
         self.kind.push(kind.into());
         self.name.push(name.into());
@@ -468,6 +486,7 @@ impl DropRows {
         self.item.push(item);
         self.chance.push(chance);
         self.quantity.push(qty);
+        self.pvp.push(pvp);
     }
 }
 
@@ -716,6 +735,32 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(wl, 1);
+    }
+
+    #[tokio::test]
+    async fn conclave_tables_are_marked_pvp() {
+        let pool = test_pool().await;
+        let mut m = fixtures();
+        m.get_mut("Module:DropTables/data").unwrap()["Missions"]
+            .as_object_mut()
+            .unwrap()
+            .insert(
+                "ConclaveLunaro".into(),
+                json!({ "Name": "Lunaro (Conclave)", "Rewards": { "B": [["Rubedo", "Resource", 12.65, 300]] } }),
+            );
+        import_with(&pool, &m).await;
+        let rows: Vec<(String, bool)> = sqlx::query_as(
+            "SELECT DISTINCT source_name, is_pvp FROM drop_sources WHERE source_kind = 'mission' ORDER BY 1",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert!(rows.contains(&("Lunaro (Conclave)".into(), true)));
+        assert!(
+            rows.iter()
+                .filter(|(n, _)| !n.contains("Conclave"))
+                .all(|(_, p)| !p)
+        );
     }
 
     #[tokio::test]

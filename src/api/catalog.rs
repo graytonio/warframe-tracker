@@ -85,6 +85,8 @@ pub struct Source {
     /// Set for `kind = "relic"`.
     pub vaulted: Option<bool>,
     pub rarity: Option<String>,
+    /// Conclave (PvP) reward table.
+    pub pvp: bool,
 }
 
 /// Direct drops, relics that drop each item, and where those relics drop (`via`),
@@ -94,15 +96,15 @@ pub async fn item_sources(pool: &PgPool, ids: &[i64]) -> sqlx::Result<Vec<(i64, 
         r#"
         SELECT d.item_id AS need, d.source_kind AS kind, d.source_name AS name, d.rotation,
                d.chance::float8 AS chance, d.quantity,
-               NULL::text AS via, NULL::boolean AS vaulted, NULL::text AS rarity
+               NULL::text AS via, NULL::boolean AS vaulted, NULL::text AS rarity, d.is_pvp AS pvp
         FROM drop_sources d WHERE d.item_id = ANY($1)
         UNION ALL
-        SELECT rd.part_item_id, 'relic', r.wiki_name, NULL, NULL, NULL, NULL, r.is_vaulted, rd.rarity
+        SELECT rd.part_item_id, 'relic', r.wiki_name, NULL, NULL, NULL, NULL, r.is_vaulted, rd.rarity, false
         FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
         WHERE rd.part_item_id = ANY($1) AND r.removed_at IS NULL
         UNION ALL
         SELECT rd.part_item_id, d.source_kind, d.source_name, d.rotation, d.chance::float8,
-               d.quantity, r.wiki_name, NULL, NULL
+               d.quantity, r.wiki_name, NULL, NULL, d.is_pvp
         FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
         JOIN drop_sources d ON d.item_id = rd.relic_item_id
         WHERE rd.part_item_id = ANY($1) AND r.removed_at IS NULL
@@ -123,6 +125,7 @@ pub async fn item_sources(pool: &PgPool, ids: &[i64]) -> sqlx::Result<Vec<(i64, 
                 via: r.get("via"),
                 vaulted: r.get("vaulted"),
                 rarity: r.get("rarity"),
+                pvp: r.get("pvp"),
             };
             (r.get("need"), s)
         })
@@ -273,7 +276,7 @@ mod tests {
         assert_eq!(
             relic,
             &json!({"kind": "relic", "name": "Axi S1", "rotation": null, "chance": null,
-                    "quantity": null, "via": null, "vaulted": true, "rarity": "Rare"})
+                    "quantity": null, "via": null, "vaulted": true, "rarity": "Rare", "pvp": false})
         );
         let via = v["sources"]
             .as_array()
@@ -284,7 +287,7 @@ mod tests {
         assert_eq!(
             via,
             &json!({"kind": "mission", "name": "Earth / Mantle", "rotation": "C", "chance": 12.5,
-                    "quantity": 1, "via": "Axi S1", "vaulted": null, "rarity": null})
+                    "quantity": 1, "via": "Axi S1", "vaulted": null, "rarity": null, "pvp": false})
         );
 
         let v = call(&pool, "/api/items/3").await.1;

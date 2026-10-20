@@ -3,8 +3,12 @@ use crate::api::catalog::{Source, item_sources};
 use crate::api::{ApiResult, CurrentUser};
 use crate::models::ItemSummary;
 use crate::tree::{ProgressNode, load_tree};
-use axum::{Json, Router, extract::State, routing::get};
-use serde::Serialize;
+use axum::{
+    Json, Router,
+    extract::{Query, State},
+    routing::get,
+};
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
 
@@ -12,11 +16,19 @@ pub fn routes() -> Router<AppState> {
     Router::new().route("/plan", get(get_plan))
 }
 
+#[derive(Deserialize, Default, Clone, Copy)]
+pub struct PlanOptions {
+    /// Count Conclave (PvP) reward tables as sources. Off by default.
+    #[serde(default)]
+    pub include_pvp: bool,
+}
+
 async fn get_plan(
     State(s): State<AppState>,
     CurrentUser(user): CurrentUser,
+    Query(opts): Query<PlanOptions>,
 ) -> ApiResult<Json<Plan>> {
-    Ok(Json(build_plan(&s.pool, user).await?))
+    Ok(Json(build_plan(&s.pool, user, opts).await?))
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -50,6 +62,7 @@ pub struct SourceGroup {
     pub rotation: Option<String>,
     pub best_chance: Option<f64>,
     pub vaulted: bool,
+    pub pvp: bool,
     pub covers: Vec<Cover>,
 }
 
@@ -60,7 +73,7 @@ pub struct Plan {
     pub unsourced: Vec<Need>,
 }
 
-pub async fn build_plan(pool: &PgPool, user_id: i64) -> sqlx::Result<Plan> {
+pub async fn build_plan(pool: &PgPool, user_id: i64, opts: PlanOptions) -> sqlx::Result<Plan> {
     let roots: Vec<i64> = sqlx::query_scalar(
         "SELECT item_id FROM wishlist WHERE user_id = $1 AND completed_at IS NULL ORDER BY added_at",
     )
@@ -90,6 +103,9 @@ pub async fn build_plan(pool: &PgPool, user_id: i64) -> sqlx::Result<Plan> {
 
     let ids: Vec<i64> = needs.keys().copied().collect();
     for (id, s) in item_sources(pool, &ids).await? {
+        if s.pvp && !opts.include_pvp {
+            continue;
+        }
         needs.get_mut(&id).unwrap().sources.push(s);
     }
     let mut needs: Vec<Need> = needs.into_values().collect();
@@ -145,6 +161,7 @@ fn group(needs: &[Need]) -> Vec<SourceGroup> {
                     rotation: s.rotation.clone(),
                     best_chance: None,
                     vaulted: s.kind == "relic" && s.vaulted == Some(true),
+                    pvp: s.pvp,
                     covers: vec![],
                 });
             if s.chance > g.best_chance {
@@ -207,7 +224,7 @@ mod tests {
     #[tokio::test]
     async fn empty_wishlist_is_empty_plan() {
         let pool = test_pool().await;
-        let p = build_plan(&pool, 1).await.unwrap();
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
         assert!(p.by_need.is_empty() && p.by_source.is_empty() && p.unsourced.is_empty());
     }
 
@@ -215,7 +232,7 @@ mod tests {
     async fn totals_resources_and_ranks_multi_cover_first() {
         let pool = test_pool().await;
         seed(&pool).await;
-        let p = build_plan(&pool, 1).await.unwrap();
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
         let need = |n: &str| {
             p.by_need
                 .iter()
@@ -242,7 +259,7 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        let p = build_plan(&pool, 1).await.unwrap();
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
         assert_eq!(
             p.by_need
                 .iter()
@@ -266,7 +283,7 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        let p = build_plan(&pool, 1).await.unwrap();
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
         assert!(p.by_need.iter().all(|x| x.item.name != "Rubedo"));
         let n = p
             .by_need
@@ -284,7 +301,7 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        let p = build_plan(&pool, 1).await.unwrap();
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
         assert!(p.unsourced.iter().any(|x| x.item.name == "Mystery Part"));
     }
 
@@ -296,9 +313,31 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        let p = build_plan(&pool, 1).await.unwrap();
+        let p = build_plan(&pool, 1, Default::default()).await.unwrap();
         let last = p.by_source.last().unwrap();
         assert!(last.vaulted && last.name == "Axi S1");
+    }
+
+    #[tokio::test]
+    async fn pvp_sources_hidden_unless_included() {
+        let pool = test_pool().await;
+        seed(&pool).await;
+        // A Conclave table covering both resources would otherwise tie Earth for first.
+        sqlx::raw_sql(
+            "INSERT INTO drop_sources (source_kind,source_name,rotation,item_id,chance,is_pvp) VALUES
+               ('mission','Saturn / Lunaro Arena (Conclave)','B',4,12,true),
+               ('mission','Saturn / Lunaro Arena (Conclave)','B',5,12,true)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let conclave = |p: &super::Plan| p.by_source.iter().any(|g| g.name.contains("Conclave"));
+        let off = build_plan(&pool, 1, Default::default()).await.unwrap();
+        assert!(!conclave(&off));
+        let all_sources = off.by_need.iter().flat_map(|n| &n.sources);
+        assert!(all_sources.into_iter().all(|s| !s.pvp));
+        let on = super::PlanOptions { include_pvp: true };
+        assert!(conclave(&build_plan(&pool, 1, on).await.unwrap()));
     }
 
     #[tokio::test]

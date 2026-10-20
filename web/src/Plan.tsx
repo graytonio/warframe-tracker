@@ -2,9 +2,21 @@ import { useState } from 'react'
 import { describeSource, pct, useApi, type Plan } from './api'
 import { Status } from './components'
 
+const PVP_KEY = 'plan.includePvp'
+
+function loadPvp(): boolean {
+  try { return localStorage.getItem(PVP_KEY) === '1' } catch { return false }
+}
+
 export default function PlanPage() {
-  const { data, error } = useApi<Plan>('/plan')
+  const [includePvp, setIncludePvp] = useState(loadPvp)
+  const { data, error } = useApi<Plan>(`/plan?include_pvp=${includePvp}`)
   const [view, setView] = useState<'source' | 'need'>('source')
+
+  function togglePvp(on: boolean) {
+    setIncludePvp(on)
+    try { localStorage.setItem(PVP_KEY, on ? '1' : '0') } catch { /* private mode: not remembered */ }
+  }
 
   return (
     <>
@@ -13,6 +25,10 @@ export default function PlanPage() {
         <button type="button" aria-pressed={view === 'source'} onClick={() => setView('source')}>What to run</button>
         <button type="button" aria-pressed={view === 'need'} onClick={() => setView('need')}>What I need</button>
       </div>
+      <label className="inline">
+        <input type="checkbox" checked={includePvp} onChange={e => togglePvp(e.target.checked)} />
+        Include PvP (Conclave) rewards
+      </label>
       <Status error={error} loading={!data} />
       {data && data.by_need.length === 0 && data.unsourced.length === 0 && (
         <p className="muted">Nothing to farm. Add items to your wishlist.</p>
@@ -26,6 +42,7 @@ export default function PlanPage() {
                 <span className="badge">{g.kind}</span>
                 <strong className="grow">{g.name}{g.rotation && ` — Rotation ${g.rotation}`}</strong>
                 {g.vaulted && <span className="badge warn">Vaulted</span>}
+                {g.pvp && <span className="badge">PvP</span>}
                 {g.best_chance != null && <span className="nowrap">{pct(g.best_chance)}</span>}
               </div>
               <ul className="chips" aria-label="Covers">

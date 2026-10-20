@@ -9,7 +9,7 @@ export type ProgressNode = { item: ItemSummary; needed: number; have: number; ob
 export type Source = { kind: "mission" | "enemy" | "container" | "planet" | "relic"; name: string;
   rotation: string | null; chance: number | null; quantity: number | null;
   via: string | null;
-  vaulted: boolean | null; rarity: string | null };
+  vaulted: boolean | null; rarity: string | null; pvp: boolean };
 
 export type WishlistEntry = { item: ItemSummary; added_at: string; completed_at: string | null;
   progress_pct: number; tree: ProgressNode };
@@ -18,7 +18,7 @@ export type InventoryRow = { item: ItemSummary; count: number; source: string; u
 
 export type Need = { item: ItemSummary; needed: number; have: number; for: { id: number; name: string }[]; sources: Source[] };
 export type SourceGroup = { kind: string; name: string; rotation: string | null; best_chance: number | null;
-  vaulted: boolean; covers: { item_id: number; name: string; chance: number | null; via: string | null }[] };
+  vaulted: boolean; pvp: boolean; covers: { item_id: number; name: string; chance: number | null; via: string | null }[] };
 export type Plan = { by_need: Need[]; by_source: SourceGroup[]; unsourced: Need[] };
 
 export type Meta = { last_import_at: string | null; item_count: number;
