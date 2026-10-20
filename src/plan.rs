@@ -1,10 +1,11 @@
 use crate::AppState;
+use crate::api::catalog::{Source, item_sources};
 use crate::api::{ApiResult, CurrentUser};
 use crate::models::ItemSummary;
 use crate::tree::{ProgressNode, load_tree};
 use axum::{Json, Router, extract::State, routing::get};
 use serde::Serialize;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
 
 pub fn routes() -> Router<AppState> {
@@ -16,18 +17,6 @@ async fn get_plan(
     CurrentUser(user): CurrentUser,
 ) -> ApiResult<Json<Plan>> {
     Ok(Json(build_plan(&s.pool, user).await?))
-}
-
-#[derive(Serialize, Clone, Debug)]
-struct Source {
-    kind: String,
-    name: String,
-    rotation: Option<String>,
-    chance: Option<f64>,
-    quantity: Option<i32>,
-    via: Option<String>,
-    vaulted: Option<bool>,
-    rarity: Option<String>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -185,47 +174,6 @@ fn group(needs: &[Need]) -> Vec<SourceGroup> {
             .then(a.name.cmp(&b.name))
     });
     out
-}
-
-/// Direct drops, relics that drop the item, and where those relics drop (`via`), best chance first.
-async fn item_sources(pool: &PgPool, ids: &[i64]) -> sqlx::Result<Vec<(i64, Source)>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT d.item_id AS need, d.source_kind AS kind, d.source_name AS name, d.rotation,
-               d.chance::float8 AS chance, d.quantity,
-               NULL::text AS via, NULL::boolean AS vaulted, NULL::text AS rarity
-        FROM drop_sources d WHERE d.item_id = ANY($1)
-        UNION ALL
-        SELECT rd.part_item_id, 'relic', r.wiki_name, NULL, NULL, NULL, NULL, r.is_vaulted, rd.rarity
-        FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
-        WHERE rd.part_item_id = ANY($1)
-        UNION ALL
-        SELECT rd.part_item_id, d.source_kind, d.source_name, d.rotation, d.chance::float8,
-               d.quantity, r.wiki_name, NULL, NULL
-        FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
-        JOIN drop_sources d ON d.item_id = rd.relic_item_id
-        WHERE rd.part_item_id = ANY($1)
-        ORDER BY chance DESC NULLS LAST, name"#,
-    )
-    .bind(ids)
-    .fetch_all(pool)
-    .await?;
-    Ok(rows
-        .iter()
-        .map(|r| {
-            let s = Source {
-                kind: r.get("kind"),
-                name: r.get("name"),
-                rotation: r.get("rotation"),
-                chance: r.get("chance"),
-                quantity: r.get("quantity"),
-                via: r.get("via"),
-                vaulted: r.get("vaulted"),
-                rarity: r.get("rarity"),
-            };
-            (r.get("need"), s)
-        })
-        .collect())
 }
 
 #[cfg(test)]

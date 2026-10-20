@@ -63,7 +63,11 @@ async fn detail(
         .ok_or(ApiError::NotFound)?;
     Ok(Json(Detail {
         item: tree.item.clone(),
-        sources: item_sources(&st.pool, id).await?,
+        sources: item_sources(&st.pool, &[id])
+            .await?
+            .into_iter()
+            .map(|(_, s)| s)
+            .collect(),
         tree,
     }))
 }
@@ -83,38 +87,44 @@ pub struct Source {
     pub rarity: Option<String>,
 }
 
-/// Direct drops, relics containing the item, and where those relics drop.
-pub async fn item_sources(pool: &PgPool, item_id: i64) -> sqlx::Result<Vec<Source>> {
+/// Direct drops, relics that drop each item, and where those relics drop (`via`),
+/// best chance first. Returns `(item_id, source)` pairs for all `ids` in one query.
+pub async fn item_sources(pool: &PgPool, ids: &[i64]) -> sqlx::Result<Vec<(i64, Source)>> {
     let rows = sqlx::query(
-        "SELECT source_kind AS kind, source_name AS name, rotation, chance::float8 AS chance, quantity,
-                NULL::text AS via, NULL::bool AS vaulted, NULL::text AS rarity
-         FROM drop_sources WHERE item_id = $1
-         UNION ALL
-         SELECT 'relic', r.wiki_name, NULL, NULL, NULL, NULL, r.is_vaulted, rd.rarity
-         FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
-         WHERE rd.part_item_id = $1 AND r.removed_at IS NULL
-         UNION ALL
-         SELECT ds.source_kind, ds.source_name, ds.rotation, ds.chance::float8, ds.quantity,
-                r.wiki_name, NULL, NULL
-         FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
-         JOIN drop_sources ds ON ds.item_id = rd.relic_item_id
-         WHERE rd.part_item_id = $1 AND r.removed_at IS NULL
-         ORDER BY chance DESC NULLS LAST, name, rotation",
+        r#"
+        SELECT d.item_id AS need, d.source_kind AS kind, d.source_name AS name, d.rotation,
+               d.chance::float8 AS chance, d.quantity,
+               NULL::text AS via, NULL::boolean AS vaulted, NULL::text AS rarity
+        FROM drop_sources d WHERE d.item_id = ANY($1)
+        UNION ALL
+        SELECT rd.part_item_id, 'relic', r.wiki_name, NULL, NULL, NULL, NULL, r.is_vaulted, rd.rarity
+        FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
+        WHERE rd.part_item_id = ANY($1) AND r.removed_at IS NULL
+        UNION ALL
+        SELECT rd.part_item_id, d.source_kind, d.source_name, d.rotation, d.chance::float8,
+               d.quantity, r.wiki_name, NULL, NULL
+        FROM relic_drops rd JOIN items r ON r.id = rd.relic_item_id
+        JOIN drop_sources d ON d.item_id = rd.relic_item_id
+        WHERE rd.part_item_id = ANY($1) AND r.removed_at IS NULL
+        ORDER BY chance DESC NULLS LAST, name, rotation"#,
     )
-    .bind(item_id)
+    .bind(ids)
     .fetch_all(pool)
     .await?;
     Ok(rows
         .iter()
-        .map(|r| Source {
-            kind: r.get("kind"),
-            name: r.get("name"),
-            rotation: r.get("rotation"),
-            chance: r.get("chance"),
-            quantity: r.get("quantity"),
-            via: r.get("via"),
-            vaulted: r.get("vaulted"),
-            rarity: r.get("rarity"),
+        .map(|r| {
+            let s = Source {
+                kind: r.get("kind"),
+                name: r.get("name"),
+                rotation: r.get("rotation"),
+                chance: r.get("chance"),
+                quantity: r.get("quantity"),
+                via: r.get("via"),
+                vaulted: r.get("vaulted"),
+                rarity: r.get("rarity"),
+            };
+            (r.get("need"), s)
         })
         .collect())
 }
