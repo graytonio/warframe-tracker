@@ -1,4 +1,5 @@
-use warframe_tracker::{AppState, app, db, import, lua, wiki};
+use anyhow::Context;
+use warframe_tracker::{AppState, app, db, import, lua, tokens, wiki};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -24,7 +25,34 @@ async fn main() -> anyhow::Result<()> {
             db::migrate(&pool).await?;
             import::run_import(&pool).await?;
         }
-        other => anyhow::bail!("unknown command {other}; expected serve | import | dump <dir>"),
+        "token" => {
+            let args: Vec<String> = std::env::args().skip(2).collect();
+            let flag = |f: &str| {
+                args.iter()
+                    .position(|a| a == f)
+                    .and_then(|i| args.get(i + 1))
+                    .cloned()
+            };
+            let name = flag("--name").context("--name is required")?;
+            let pool = db::connect_with_retry(&url).await;
+            db::migrate(&pool).await?;
+            match args.first().map(String::as_str) {
+                Some("create") => {
+                    let user = flag("--user").map_or(Ok(1), |u| u.parse())?;
+                    println!("{}", tokens::create(&pool, user, &name).await?);
+                }
+                Some("revoke") => {
+                    if !tokens::revoke(&pool, &name).await? {
+                        eprintln!("no live token named {name}");
+                        std::process::exit(1);
+                    }
+                }
+                _ => anyhow::bail!("expected token create|revoke --name N [--user ID]"),
+            }
+        }
+        other => anyhow::bail!(
+            "unknown command {other}; expected serve | import | token create|revoke | dump <dir>"
+        ),
     }
     Ok(())
 }

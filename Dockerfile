@@ -9,13 +9,16 @@ RUN npm run build
 FROM rust:1.94-bookworm AS build
 WORKDIR /app
 # Build dependencies against stub sources so this layer stays cached until Cargo.toml/Cargo.lock change.
+# Cargo needs every workspace member's manifest to resolve the workspace; wft-sync itself isn't built here.
 COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo 'fn main() {}' > src/main.rs && touch src/lib.rs && cargo build --release && rm -rf src
+COPY sync/Cargo.toml sync/
+RUN mkdir -p src sync/src && echo 'fn main() {}' > src/main.rs && touch src/lib.rs \
+ && echo 'fn main() {}' > sync/src/main.rs && cargo build --release -p warframe-tracker && rm -rf src
 # src/db.rs include_str!s the schema.
 COPY schema.sql ./
 COPY src ./src
 # touch: the real sources can be older than the stub's build output, which would make cargo skip them.
-RUN touch src/main.rs src/lib.rs && cargo build --release
+RUN touch src/main.rs src/lib.rs && cargo build --release -p warframe-tracker
 
 FROM debian:bookworm-slim
 # The importer makes HTTPS calls to the wiki.

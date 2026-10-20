@@ -1,0 +1,13 @@
+{
+  "LastInventorySync": { "$oid": "6700000000000000000000aa" },
+  "Suits": [ { "ItemType": "/Lotus/Powersuits/Saryn/SarynPrime" }, { "ItemType": "/Lotus/Powersuits/Saryn/SarynPrime" } ],
+  "LongGuns": [ { "ItemType": "/Lotus/Weapons/Tenno/Rifle/BratonPrime" } ],
+  "MiscItems": [
+    { "ItemType": "/Lotus/Types/Items/MiscItems/Neurode", "ItemCount": 40 },
+    { "ItemType": "/Lotus/Types/Items/MiscItems/Neurode", "ItemCount": 2 },
+    { "ItemType": "/Lotus/Types/Recipes/WarframeRecipes/SarynPrimeChassisComponent", "ItemCount": 1 }
+  ],
+  "Recipes": [ { "ItemType": "/Lotus/Types/Recipes/WarframeRecipes/SarynPrimeChassisBlueprint", "ItemCount": 1 } ],
+  "PlayerLevel": 30,
+  "Unrelated": [ { "NoItemType": true } ]
+}

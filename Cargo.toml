@@ -6,11 +6,14 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.104"
 axum = "0.8"
+base64 = "0.23.1"
 chrono = { version = "0.4.45", features = ["serde"] }
 mlua = { version = "0.12.2", features = ["lua51", "vendored", "serialize", "error-send"] }
+rand = "0.10.3"
 reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "json", "query"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+sha2 = "0.11.1"
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "postgres", "tls-rustls-ring-webpki", "json", "chrono"] }
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.7.1", features = ["fs"] }
@@ -18,3 +21,6 @@ tower-http = { version = "0.7.1", features = ["fs"] }
 [dev-dependencies]
 http-body-util = "0.1.5"
 tower = { version = "0.5.3", features = ["util"] }
+
+[workspace]
+members = ["sync"]
